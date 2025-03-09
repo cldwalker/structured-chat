@@ -1,6 +1,8 @@
 ## Description
 
-This example demonstrates a Logseq DB graph extracting data from [an Ollama LLM](https://ollama.com/) that can then be used in Logseq. With the DB version, a Logseq graph defines an ontology through its tags and properties. While the [schema.org ontology](https://schema.org) is used, the example script can be configured to use any Logseq graph's ontology. To see a demo of this example, see [this video](https://www.loom.com/share/bd98db65474f4e828bd4db65d556159c).
+This project provides a CLI, `structured_chat` for extracting [structured output](https://ollama.com/blog/structured-outputs) from different LLM providers and optionally importing it to [Logseq](https://logseq.com). Currently this works for Google's gemini and Ollama's llama models. To see a demo of how this can work with ollama, see [this older video](https://www.loom.com/share/bd98db65474f4e828bd4db65d556159c).
+
+**NOTE**: The rest of this readme is out of date and will be outdated soon
 
 ## Setup
 
@@ -16,10 +18,10 @@ This example demonstrates a Logseq DB graph extracting data from [an Ollama LLM]
 
 ## Usage
 
-The script `ollama_chat.mjs` queries the LLM to ask for [structured data](https://ollama.com/blog/structured-outputs) about a specific thing/object. To use the script, we need to specify the Logseq graph we're querying, Let's start by asking about the book 'Don Quixote':
+The script `structured_chat.mjs` queries the LLM to ask for [structured data](https://ollama.com/blog/structured-outputs) about a specific thing/object. To use the script, we need to specify the Logseq graph we're querying, Let's start by asking about the book 'Don Quixote':
 
 ```
-$ node ollama_chat.mjs ./schema book don quixote
+$ node structured_chat.mjs ./schema book don quixote
 ...
  :pages-and-blocks
  [{:page
@@ -45,7 +47,7 @@ You can see that we get back the book's published date and the author's name and
 Now that we have some info about the book, let's get more data about its author:
 
 ```
-$ node ollama_chat.mjs ./schema person "Miguel de Cervantes Sañez"
+$ node structured_chat.mjs ./schema person "Miguel de Cervantes Sañez"
 ...
  :pages-and-blocks
  [{:page
@@ -68,7 +70,7 @@ Import this data into your graph and see your existing page about Miguel update 
 So far we have been querying [books](https://schema.org/Book) and [people](https://schema.org/Person) tags/types. We got back a number of specific properties because the script already comes preconfigured for those tags, as well as for [movies](https://schema.org/Movie) and [songs](https://schema.org/MusicRecording). The script can also be used to explore any of [schema.org's 900 tags](https://schema.org/docs/full.html). For example, let's learn about the Clojure [software](https://schema.org/SoftwareSourceCode):
 
 ```
-$ node ollama_chat.mjs ./schema softwaresourcecode clojure -p author codeRepository
+$ node structured_chat.mjs ./schema softwaresourcecode clojure -p author codeRepository
 ...
  :pages-and-blocks
  [{:page
@@ -99,7 +101,7 @@ $ node ollama_chat.mjs ./schema softwaresourcecode clojure -p author codeReposit
 To step back a bit, why does this script use the schema.org ontology? It's because it is a large ontology that has been used by the major search engines for over a decade. In addition to 900 tags, it provides 1400+ [properties](https://meta.schema.org/Property).org that are well designed for reuse. To quickly explore a variety of properties, use `-r`. For example, we can redo the Clojure query and ask for 5 random properties associated with it:
 
 ```
-$ node ollama_chat.mjs ./schema softwaresourcecode clojure -p author -r 5
+$ node structured_chat.mjs ./schema softwaresourcecode clojure -p author -r 5
 To recreate these random properties: -p learningResourceType encodingFormat accessibilitySummary abstract sdPublisher
 ...
  :pages-and-blocks
@@ -134,6 +136,6 @@ To recreate these random properties: -p learningResourceType encodingFormat acce
 
 ## Configuring the script
 
-The script is configured with the `user-config` var in [ollama_chat.cljs](./src/logseq/ollama_chat.cljs). Feel free to modify it to try out different schema.org tags and properties.
+The script is configured with the `user-config` var in [structured_chat.cljs](./src/cldwalker/structured_chat.cljs). Feel free to modify it to try out different schema.org tags and properties.
 
 You could also configure the script to work with your graph's ontology. Doing so requires knowing the `:db/ident` of your graph's tags and properties. To get this data, run the dev command `Show page data` and look for the keyword next to `:db/ident`. NOTE: I have not tried this outside of the schema.org ontology and don't know how well ollama will respond to custom ontologies. I would think schema.org works better than most ontologies because of its widespread adoption and thus nontrivial representation in a LLM's training.

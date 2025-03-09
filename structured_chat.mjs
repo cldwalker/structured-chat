@@ -6,7 +6,7 @@ import { dirname, resolve } from 'path';
 
 const __dirname = fileURLToPath(dirname(import.meta.url));
 addClassPath(resolve(__dirname, 'src'));
-const { main } = await loadFile(resolve(__dirname, 'src/logseq/ollama_chat.cljs'));
+const { main } = await loadFile(resolve(__dirname, 'src/cldwalker/structured_chat.cljs'));
 
 // Expects to be called as node X.js ...
 const args = process.argv.slice(2)
