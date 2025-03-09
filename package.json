@@ -1,0 +1,21 @@
+{
+  "name": "@cldwalker/structured-chat",
+  "version": "0.1.0",
+  "description": "Extract structured output from different llm providers and optionally use it with Logseq",
+  "bin": {
+    "structured-chat": "structured_chat.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cldwalker/structured-chat.git"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/cldwalker/structured-chat/issues"
+  },
+  "homepage": "https://github.com/cldwalker/structured-chat#readme",
+  "dependencies": {
+    "@logseq/nbb-logseq": "logseq/nbb-logseq#feat-db-v18",
+    "better-sqlite3": "9.3.0"
+  }
+}
