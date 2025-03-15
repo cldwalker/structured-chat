@@ -1,21 +1,16 @@
 (ns cldwalker.structured-chat
-  (:require ["@google/generative-ai" :as gen-ai]
-            ["child_process" :as child-process]
-            ["os" :as os]
+  (:require ["os" :as os]
             ["path" :as node-path]
             [babashka.cli :as cli]
+            [cldwalker.structured-chat.llm-provider :as llm-provider]
+            [cldwalker.structured-chat.ollama :as ollama]
+            [cldwalker.structured-chat.gemini :as gemini]
             [cljs.pprint :as pprint]
             [clojure.string :as string]
-            [clojure.walk :as walk]
             [datascript.core :as d]
-            [logseq.common.util :as common-util]
-            [logseq.common.util.date-time :as date-time-util]
             [logseq.db :as ldb]
             #_:clj-kondo/ignore
-            [logseq.db.sqlite.cli :as sqlite-cli]
-            [logseq.db.sqlite.export :as sqlite-export]
-            [malli.json-schema :as json-schema]
-            [promesa.core :as p]))
+            [logseq.db.sqlite.cli :as sqlite-cli]))
 
 (def user-config
   "Configure what to query per class/tag. Each class has a map consisting of the following keys:
@@ -57,17 +52,6 @@
     {:schema.property/byArtist
      {:build/tags [:schema.class/MusicGroup]}}}})
 
-(defn copy-to-clipboard [text]
-  (let [proc (child-process/exec "pbcopy")]
-    (.write (.-stdin proc) text)
-    (.end (.-stdin proc))))
-
-(defn- command-exists? [command]
-  (try
-    (child-process/execSync (str "which " command) #js {:stdio "ignore"})
-    true
-    (catch :default _ false)))
-
 (defn- get-dir-and-db-name
   "Gets dir and db name for use with open-db!"
   [graph-dir]
@@ -76,247 +60,6 @@
           (node-path/join (or js/process.env.ORIGINAL_PWD ".") graph-dir)]
       ((juxt node-path/dirname node-path/basename) graph-dir'))
     [(node-path/join (os/homedir) "logseq" "graphs") graph-dir]))
-
-(defn- ->property-value-schema
-  "Returns a vec of optional malli properties and required schema for a given property ident"
-  [{:keys [input-class input-global-properties] :as input-map} export-properties prop-ident options]
-  (let [prop->malli-type (if (:gemini options)
-                           {:number :int
-                            :checkbox :boolean
-                          ;; doesn't matter since we're overridding it
-                            :date :any
-                          ;; TODO: Add support for :datetime
-                            ;; Gemini doesn't support :format uri so string has to be enough
-                            :url :string
-                            :default :string}
-                           {:number :int
-                            :checkbox :boolean
-                           ;; doesn't matter since we're overridding it
-                            :date :any
-                           ;; TODO: Add support for :datetime
-                            :url uri?
-                            :default :string})
-        prop-type (get-in export-properties [prop-ident :logseq.property/type])
-        schema* (if (= :node prop-type)
-                  (let [obj-properties (->> (get-in user-config [input-class :properties prop-ident :chat/properties])
-                                            (concat input-global-properties)
-                                            distinct)]
-                    (into
-                     [:map [:name {:min 2} :string]]
-                     (map #(apply vector % (->property-value-schema input-map export-properties % options))
-                          obj-properties)))
-                  (get prop->malli-type prop-type))
-        _ (assert schema* (str "Property type " (pr-str prop-type) " must have a schema type"))
-        schema (if (= :db.cardinality/many (get-in export-properties [prop-ident :db/cardinality]))
-                 [:sequential {:min 1} schema*]
-                 schema*)
-        props-and-schema (cond-> []
-                           ;; Add json-schemable :date via malli property rather fun install fun of malli.experimental.time
-                           (= :date prop-type)
-                           (conj (if (:gemini options)
-                                   {:json-schema {:type "string" :format "date-time"}}
-                                   {:json-schema {:type "string" :format "date"}}))
-                           ;; TODO: mv to gemini
-                          ;;  (= prop-ident :schema.property/url)
-                          ;;  (conj {:json-schema {:type "string" :description "wikipedia url"}})
-                          ;;  (= prop-ident :schema.property/birthPlace)
-                          ;;  (conj {:json-schema {:type "string" :description "country"}})
-                           true
-                           (conj schema))]
-    props-and-schema))
-
-(defn- ->query-schema [{:keys [input-class input-properties input-global-properties] :as input-map}
-                       export-properties {:keys [many-objects] :as options}]
-  (let [schema
-        (into
-         [:map [:name {:min 2} :string]]
-         (map
-          (fn [k]
-            (apply vector
-                   (or (get-in user-config [input-class :properties k :chat-ident]) k)
-                   (->property-value-schema input-map export-properties k options)))
-          (distinct
-           (concat (:chat/class-properties (input-class user-config))
-                   input-properties
-                   input-global-properties))))]
-    (if many-objects
-      [:sequential {:min 1} schema]
-      schema)))
-
-(defn- generate-json-schema-format [input-map export-properties options]
-  ;; (pprint/pprint (->query-schema input-map export-properties options))
-  (json-schema/transform (->query-schema input-map export-properties options)))
-
-(defn- ->post-body [input-map export-properties args options]
-  (let [prompt (if (:many-objects options)
-                 (str "Tell me about " (first args) "(s) "
-                      (->> (string/split (string/join " " (rest args)) #"\s*,\s*")
-                           (map #(pr-str %))
-                           (string/join ", ")))
-                 (str "Tell me about " (first args) " " (pr-str (string/join " " (rest args)))))]
-    {:model "llama3.2"
-     :messages [{:role "user" :content prompt}]
-     :stream false
-     :format (generate-json-schema-format input-map export-properties options)}))
-
-(defn- parse-gemini-date [s]
-  (let [date-str (or (second (re-find #"(\d{4}-\d{2}-\d{2})" s))
-                     (throw (ex-info (str "Invalid date in response: " (pr-str s)) {})))]
-    (parse-long (string/replace date-str "-" ""))))
-
-(defn- buildable-properties [properties input-class export-properties options]
-  (->> properties
-       (map (fn [[chat-ident v]]
-              (let [prop-ident (or (some (fn [[k' v']] (when (= chat-ident (:chat-ident v')) k'))
-                                         (:properties (get user-config input-class)))
-                                   chat-ident)]
-                [prop-ident
-                 (let [prop-value
-                       (fn [e]
-                         (case (get-in export-properties [prop-ident :logseq.property/type])
-                           :node
-                           [:build/page (let [obj-tags (or (get-in user-config [input-class :properties prop-ident :build/tags])
-                                                           (some-> (get-in export-properties [prop-ident :build/property-classes])
-                                                                   (subvec 0 1)))]
-                                          (cond-> {:block/title (:name e)}
-                                            (seq obj-tags)
-                                            (assoc :build/tags obj-tags)
-                                            (seq (dissoc e :name))
-                                            (assoc :build/properties
-                                                   (buildable-properties (dissoc e :name) input-class export-properties options))))]
-                           :date
-                           [:build/page {:build/journal (if (:gemini options)
-                                                          (parse-gemini-date e)
-                                                          (parse-long (string/replace e "-" "")))}]
-                           (:number :checkbox)
-                           e
-                           (:default :url)
-                           (str e)))]
-                   (if (vector? v)
-                     (set (map prop-value v))
-                     (prop-value v)))])))
-       (into {:user.property/importedAt (common-util/time-ms)})))
-
-(defn- remove-invalid-properties [pages-and-blocks*]
-  (let [urls (atom #{})
-        _ (walk/postwalk (fn [f]
-                           (when (and (vector? f) (= :schema.property/url (first f)))
-                             (swap! urls conj (second f)))
-                           f)
-                         pages-and-blocks*)
-        ;; Won't need regex check if ollama ever supports regex 'pattern' option
-        invalid-urls (remove #(re-find #"^(https?)://.*$" %) @urls)
-        pages-and-blocks (walk/postwalk (fn [f]
-                                          (if (and (map? f) (contains? (set invalid-urls) (:schema.property/url f)))
-                                            (dissoc f :schema.property/url)
-                                            f))
-                                        pages-and-blocks*)]
-    {:pages-and-blocks pages-and-blocks
-     :urls @urls
-     :invalid-urls invalid-urls}))
-
-(defn- print-export-map
-  [content-json input-class export-properties {:keys [block-import many-objects] :as options}]
-  (let [content (-> (js/JSON.parse content-json)
-                    (js->clj :keywordize-keys true))
-        objects (mapv #(hash-map :name (:name %)
-                                 :properties (buildable-properties (dissoc % :name) input-class export-properties options))
-                      (if many-objects content [content]))
-        export-classes (merge (zipmap (distinct
-                                       (concat (mapcat :build/tags (vals (:properties (get user-config input-class))))
-                                               ;; We may not use all of these but easier than walking build/page's
-                                               (mapcat :build/property-classes (vals export-properties))))
-                                      (repeat {}))
-                              {input-class {}})
-        pages-and-blocks*
-        (if block-import
-          [{:page {:build/journal (date-time-util/date->int (new js/Date))}
-            :blocks (mapv (fn [obj]
-                            {:block/title (:name obj)
-                             :build/tags [input-class]
-                             :build/properties (:properties obj)})
-                          objects)}]
-          (mapv (fn [obj]
-                  {:page
-                   {:block/title (:name obj)
-                    :build/tags [input-class]
-                   ;; Allows upsert of existing page
-                    :build/keep-uuid? true
-                    :build/properties (:properties obj)}})
-                objects))
-        {:keys [pages-and-blocks invalid-urls urls]} (remove-invalid-properties pages-and-blocks*)
-        export-map
-        {:properties (merge export-properties
-                            {:user.property/importedAt
-                             {:logseq.property/type :datetime
-                              :db/cardinality :db.cardinality/one}})
-         :classes export-classes
-         :pages-and-blocks pages-and-blocks}]
-    (#'sqlite-export/ensure-export-is-valid export-map)
-    (pprint/pprint export-map)
-    (when (command-exists? "pbcopy")
-      (copy-to-clipboard (with-out-str (pprint/pprint export-map))))
-    (when (seq invalid-urls)
-      (println (str (count invalid-urls) "/" (count urls)) "urls were removed for being invalid:" (pr-str (vec invalid-urls))))))
-
-(defn- ollama-chat
-  [{:keys [input-class] :as input-map} export-properties args options]
-  (let [post-body (->post-body input-map export-properties args options)
-        post-body' (clj->js post-body :keyword-fn #(subs (str %) 1))]
-    ;; TODO: Try javascript approach for possibly better results
-    ;; Uses chat endpoint as described in https://ollama.com/blog/structured-outputs
-    (-> (p/let [resp (js/fetch "http://localhost:11434/api/chat"
-                               #js {:method "POST"
-                                    :headers #js {"Accept" "application/json"}
-                                    :body (js/JSON.stringify post-body')})
-                body (.json resp)]
-          (if (= 200 (.-status resp))
-            (if (:raw options)
-              (pprint/pprint (update-in (js->clj body :keywordize-keys true)
-                                        [:message :content]
-                                        #(-> (js/JSON.parse %)
-                                             (js->clj :keywordize-keys true))))
-              (print-export-map (.. body -message -content) input-class export-properties options))
-            (do
-              (println "Error: Chat endpoint returned" (.-status resp) "with message" (pr-str (.-error body)))
-              (js/process.exit 1))))
-        (p/catch (fn [e]
-                   (println "Unexpected error: " e))))))
-
-(defn- gemini-chat
-  [{:keys [input-class] :as input-map} export-properties args options]
-  (let [gen-ai-client (new gen-ai/GoogleGenerativeAI js/process.env.GEMINI_API_KEY)
-        schema (generate-json-schema-format input-map export-properties options)
-        prompt (if (:many-objects options)
-                 (str "Tell me about " (first args) "(s) "
-                      (->> (string/split (string/join " " (rest args)) #"\s*,\s*")
-                           (map #(pr-str %))
-                           (string/join ", ")))
-                 (str "Tell me about " (first args) " " (pr-str (string/join " " (rest args)))))
-        post-body {:model "gemini-2.0-flash"
-                   :generationConfig {:responseMimeType "application/json"
-                                      :responseSchema schema}}
-        post-body' (clj->js post-body :keyword-fn #(subs (str %) 1))
-        model (.getGenerativeModel gen-ai-client post-body')]
-    (-> (p/let [result (.generateContent model prompt)
-                resp (.-response result)]
-          (if (:raw options)
-            (pprint/pprint (update-in (js->clj resp :keywordize-keys true)
-                                      [:candidates 0 :content :parts 0 :text]
-                                      #(-> (js/JSON.parse %)
-                                           (js->clj :keywordize-keys true))))
-            (print-export-map (.text resp) input-class export-properties options)))
-        (p/catch (fn [e]
-                   (if (instance? gen-ai/GoogleGenerativeAIFetchError e)
-                     (do
-                       (println "Error: Chat endpoint returned" (.-status e) "with message" (pr-str (.-message e)))
-                       (js/process.exit 1))
-                     (println "Unexpected error: " e)))))))
-
-(defn- structured-chat [input-map export-properties args options]
-  (if (:gemini options)
-    (gemini-chat input-map export-properties args options)
-    (ollama-chat input-map export-properties args options)))
 
 (def spec
   "Options spec"
@@ -385,13 +128,17 @@
         _ (when (seq random-properties)
             (println "To recreate these random properties: -p"
                      (string/join " " (map name random-properties))))
-        input-map {:input-class input-class
-                   :input-properties (into (mapv translate-input-property (:properties options))
-                                           random-properties)
-                   :input-global-properties
-                   (mapv translate-input-property
-                         ;; Use -P to clear default
-                         (if (= (:global-properties options) [true]) [] (:global-properties options)))}
+        input-map (merge
+                   (select-keys options [:many-objects :block-import :raw])
+                   {:input-class input-class
+                    :input-properties (into (mapv translate-input-property (:properties options))
+                                            random-properties)
+                    :args args''
+                    :user-config user-config
+                    :input-global-properties
+                    (mapv translate-input-property
+                          ;; Use -P to clear default
+                          (if (= (:global-properties options) [true]) [] (:global-properties options)))})
         export-properties (->> (:chat/class-properties (input-class user-config))
                                (concat (mapcat :chat/properties (vals (:properties (get user-config input-class)))))
                                (concat (:input-properties input-map))
@@ -404,9 +151,10 @@
                                                (seq (:logseq.property/classes %))
                                                (assoc :build/property-classes
                                                       (mapv :db/ident (:logseq.property/classes %))))))
-                               (into {}))]
+                               (into {}))
+        llm (if (:gemini options) (gemini/->Gemini input-map) (ollama/->Ollama input-map))]
     (if (:json-schema-inspect options)
-      (pprint/pprint (generate-json-schema-format input-map export-properties options))
-      (structured-chat input-map export-properties args'' options))))
+      (pprint/pprint (llm-provider/generate-json-schema-format llm export-properties))
+      (llm-provider/chat llm export-properties))))
 
 #js {:main -main}
