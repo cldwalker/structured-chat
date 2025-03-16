@@ -27,7 +27,7 @@
                      (map #(apply vector % (->property-value-schema llm export-properties %))
                           obj-properties)))
                   (get prop->malli-type prop-type))
-        _ (assert schema* (str "Property type " (pr-str prop-type) " must have a schema type"))
+        _ (assert schema* (str "Property " prop-ident " with type " (pr-str prop-type) " must have a schema type"))
         schema (if (= :db.cardinality/many (get-in export-properties [prop-ident :db/cardinality]))
                  [:sequential {:min 1} schema*]
                  schema*)
@@ -39,7 +39,8 @@
                            (conj schema))]
     props-and-schema))
 
-(defn- ->query-schema [{{:keys [input-class input-properties input-global-properties many-objects user-config]} :user-input :as llm}
+(defn- ->query-schema [{{:keys [input-class input-properties input-global-properties many-objects user-config disable-initial-properties?]} :user-input
+                        :as llm}
                        export-properties]
   (let [schema
         (into
@@ -50,7 +51,7 @@
                    (or (get-in user-config [input-class :properties k :chat-ident]) k)
                    (->property-value-schema llm export-properties k)))
           (distinct
-           (concat (:chat/class-properties (input-class user-config))
+           (concat (when-not disable-initial-properties? (:chat/class-properties (input-class user-config)))
                    input-properties
                    input-global-properties))))]
     (if many-objects

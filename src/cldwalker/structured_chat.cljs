@@ -72,7 +72,7 @@
    :json-schema-inspect {:alias :j
                          :desc "Print json schema to submit and don't submit to chat"}
    :properties {:alias :p
-                :desc "Properties to fetch for top-level object"
+                :desc "Initial properties to fetch for object"
                 :coerce []}
    :global-properties {:alias :P
                        :desc "Global properties to fetch for all objects"
@@ -102,20 +102,23 @@
          (map :db/ident)
          distinct)))
 
-(defn- build-export-properties [db user-input input-class]
-  (->> (:chat/class-properties (input-class user-config))
-       (concat (mapcat :chat/properties (vals (:properties (get user-config input-class)))))
-       (concat (:input-properties user-input))
-       (concat (:input-global-properties user-input))
-       distinct
-       (map #(or (d/entity db %)
-                 (error (str "No property exists for " (pr-str %)))))
-       (map #(vector (:db/ident %)
-                     (cond-> (select-keys % [:logseq.property/type :db/cardinality])
-                       (seq (:logseq.property/classes %))
-                       (assoc :build/property-classes
-                              (mapv :db/ident (:logseq.property/classes %))))))
-       (into {})))
+(defn- build-export-properties [db {:keys [input-class disable-initial-properties?] :as user-input}]
+  (let [configured-object-properties
+        (when-not disable-initial-properties?
+          (concat (:chat/class-properties (input-class user-config))
+                  (mapcat :chat/properties (vals (:properties (get user-config input-class))))))]
+    (->> configured-object-properties
+         (concat (:input-properties user-input))
+         (concat (:input-global-properties user-input))
+         distinct
+         (map #(or (d/entity db %)
+                   (error (str "No property exists for " (pr-str %)))))
+         (map #(vector (:db/ident %)
+                       (cond-> (select-keys % [:logseq.property/type :db/cardinality])
+                         (seq (:logseq.property/classes %))
+                         (assoc :build/property-classes
+                                (mapv :db/ident (:logseq.property/classes %))))))
+         (into {}))))
 
 (defn ^:api -main [& args]
   (let [{options :opts args' :args} (cli/parse-args args {:spec spec})
@@ -144,17 +147,21 @@
             (println "To recreate these random properties: -p"
                      (string/join " " (map name random-properties))))
         user-input (merge
-                   (select-keys options [:many-objects :block-import :raw])
-                   {:input-class input-class
-                    :input-properties (into (mapv translate-input-property (:properties options))
-                                            random-properties)
-                    :args args''
-                    :user-config user-config
-                    :input-global-properties
-                    (mapv translate-input-property
+                    (select-keys options [:many-objects :block-import :raw])
+                    {:input-class input-class
+                     :input-properties (into (if (= [true] (:properties options))
+                                               []
+                                               (mapv translate-input-property (:properties options)))
+                                             random-properties)
+                     ;; enabled by '-p'
+                     :disable-initial-properties? (= [true] (:properties options))
+                     :args args''
+                     :user-config user-config
+                     :input-global-properties
+                     (mapv translate-input-property
                           ;; Use -P to clear default
-                          (if (= (:global-properties options) [true]) [] (:global-properties options)))})
-        export-properties (build-export-properties @conn user-input input-class)
+                           (if (= (:global-properties options) [true]) [] (:global-properties options)))})
+        export-properties (build-export-properties @conn user-input)
         llm (if (:gemini options) (gemini/->Gemini user-input) (ollama/->Ollama user-input))]
     (if (:json-schema-inspect options)
       (pprint/pprint (llm-provider/generate-json-schema-format llm export-properties))
