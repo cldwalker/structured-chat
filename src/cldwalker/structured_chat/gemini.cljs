@@ -1,11 +1,12 @@
 (ns cldwalker.structured-chat.gemini
+  "Provides structured outputs for gemini - https://ai.google.dev/gemini-api/docs/structured-output?lang=node"
   (:require ["@google/generative-ai" :as gen-ai]
             [cldwalker.structured-chat.llm-provider :as llm-provider]
             [cljs.pprint :as pprint]
             [clojure.string :as string]
             [promesa.core :as p]))
 
-(def gemini-prop->malli-type
+(def ^:private gemini-prop->malli-type
   {:number :int
    :checkbox :boolean
    ;; doesn't matter since we're overridding it

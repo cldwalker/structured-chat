@@ -1,10 +1,11 @@
 (ns cldwalker.structured-chat.ollama
+  "Provides structured outputs for ollama - https://ollama.com/blog/structured-outputs"
   (:require [cldwalker.structured-chat.llm-provider :as llm-provider]
             [cljs.pprint :as pprint]
             [clojure.string :as string]
             [promesa.core :as p]))
 
-(def ollama-prop->malli-type
+(def ^:private ollama-prop->malli-type
   {:number :int
    :checkbox :boolean
    ;; doesn't matter since we're overridding it

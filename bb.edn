@@ -1,0 +1,24 @@
+{:min-bb-version "1.2.174"
+ :deps
+ {io.github.logseq/bb-tasks
+  #_{:local/root "../bb-tasks"}
+  {:git/sha "1d429e223baeade426d30a4ed1c8a110173a2402"}}
+
+ :pods
+ {clj-kondo/clj-kondo {:version "2025.02.20"}}
+
+ :tasks
+ {lint:large-vars
+  logseq.bb-tasks.lint.large-vars/-main
+
+  lint:carve
+  logseq.bb-tasks.lint.carve/-main
+
+  lint:ns-docstrings
+  logseq.bb-tasks.lint.ns-docstrings/-main
+
+  lint:minimize-public-vars
+  logseq.bb-tasks.lint.minimize-public-vars/-main}
+
+ :tasks/config
+ {:large-vars {:max-lines-count 50}}}

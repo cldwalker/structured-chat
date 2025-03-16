@@ -1,18 +1,18 @@
 (ns cldwalker.structured-chat
+  "Main ns for running CLI"
   (:require ["os" :as os]
             ["path" :as node-path]
             [babashka.cli :as cli]
+            [cldwalker.structured-chat.gemini :as gemini]
             [cldwalker.structured-chat.llm-provider :as llm-provider]
             [cldwalker.structured-chat.ollama :as ollama]
-            [cldwalker.structured-chat.gemini :as gemini]
             [cljs.pprint :as pprint]
             [clojure.string :as string]
             [datascript.core :as d]
             [logseq.db :as ldb]
-            #_:clj-kondo/ignore
             [logseq.db.sqlite.cli :as sqlite-cli]))
 
-(def user-config
+(def ^:private user-config
   "Configure what to query per class/tag. Each class has a map consisting of the following keys:
    * :chat/class-properties - a vec of properties to fetch for this class
    * :properties - Configures properties. Keys are the property kw idents and the values are a map with the keys:
@@ -61,7 +61,7 @@
       ((juxt node-path/dirname node-path/basename) graph-dir'))
     [(node-path/join (os/homedir) "logseq" "graphs") graph-dir]))
 
-(def spec
+(def ^:private spec
   "Options spec"
   {:help {:alias :h
           :desc "Print help"}
@@ -102,7 +102,22 @@
          (map :db/ident)
          distinct)))
 
-(defn -main [& args]
+(defn- build-export-properties [db input-map input-class]
+  (->> (:chat/class-properties (input-class user-config))
+       (concat (mapcat :chat/properties (vals (:properties (get user-config input-class)))))
+       (concat (:input-properties input-map))
+       (concat (:input-global-properties input-map))
+       distinct
+       (map #(or (d/entity db %)
+                 (error (str "No property exists for " (pr-str %)))))
+       (map #(vector (:db/ident %)
+                     (cond-> (select-keys % [:logseq.property/type :db/cardinality])
+                       (seq (:logseq.property/classes %))
+                       (assoc :build/property-classes
+                              (mapv :db/ident (:logseq.property/classes %))))))
+       (into {})))
+
+(defn ^:api -main [& args]
   (let [{options :opts args' :args} (cli/parse-args args {:spec spec})
         [graph-dir & args''] args'
         _ (when (or (nil? graph-dir) (:help options))
@@ -139,19 +154,7 @@
                     (mapv translate-input-property
                           ;; Use -P to clear default
                           (if (= (:global-properties options) [true]) [] (:global-properties options)))})
-        export-properties (->> (:chat/class-properties (input-class user-config))
-                               (concat (mapcat :chat/properties (vals (:properties (get user-config input-class)))))
-                               (concat (:input-properties input-map))
-                               (concat (:input-global-properties input-map))
-                               distinct
-                               (map #(or (d/entity @conn %)
-                                         (error (str "No property exists for " (pr-str %)))))
-                               (map #(vector (:db/ident %)
-                                             (cond-> (select-keys % [:logseq.property/type :db/cardinality])
-                                               (seq (:logseq.property/classes %))
-                                               (assoc :build/property-classes
-                                                      (mapv :db/ident (:logseq.property/classes %))))))
-                               (into {}))
+        export-properties (build-export-properties @conn input-map input-class)
         llm (if (:gemini options) (gemini/->Gemini input-map) (ollama/->Ollama input-map))]
     (if (:json-schema-inspect options)
       (pprint/pprint (llm-provider/generate-json-schema-format llm export-properties))
