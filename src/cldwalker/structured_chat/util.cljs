@@ -31,3 +31,7 @@
     {:pages-and-blocks pages-and-blocks
      :urls @urls
      :invalid-urls invalid-urls}))
+
+(defn error [msg]
+  (println (str "Error: " msg))
+  (js/process.exit 1))

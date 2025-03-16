@@ -6,6 +6,7 @@
             [cldwalker.structured-chat.gemini :as gemini]
             [cldwalker.structured-chat.llm-provider :as llm-provider]
             [cldwalker.structured-chat.ollama :as ollama]
+            [cldwalker.structured-chat.util :as util]
             [cljs.pprint :as pprint]
             [clojure.string :as string]
             [datascript.core :as d]
@@ -83,12 +84,8 @@
                        :coerce :long}
    :many-objects {:alias :m
                   :desc "Query is for multiple comma separated objects"}
-   :gemini {:alias :g
-            :desc "Run gemini instead of ollama"}})
-
-(defn- error [msg]
-  (println (str "Error: " msg))
-  (js/process.exit 1))
+   :ollama {:alias :o
+            :desc "Run ollama instead of gemini"}})
 
 (defn- translate-input-property [input]
   (if (= "description" input) :logseq.property/description (keyword "schema.property" input)))
@@ -112,7 +109,7 @@
          (concat (:input-global-properties user-input))
          distinct
          (map #(or (d/entity db %)
-                   (error (str "No property exists for " (pr-str %)))))
+                   (util/error (str "No property exists for " (pr-str %)))))
          (map #(vector (:db/ident %)
                        (cond-> (select-keys % [:logseq.property/type :db/cardinality])
                          (seq (:logseq.property/classes %))
@@ -138,7 +135,7 @@
                   (string/lower-case (first args'')))
              first
              (d/entity @conn))
-            (error (str "No class found for" (pr-str (first args'')))))
+            (util/error (str "No class found for" (pr-str (first args'')))))
         input-class (:db/ident input-class-ent)
         random-properties (when (:random-properties options)
                             (take (:random-properties options)
@@ -162,7 +159,7 @@
                           ;; Use -P to clear default
                            (if (= (:global-properties options) [true]) [] (:global-properties options)))})
         export-properties (build-export-properties @conn user-input)
-        llm (if (:gemini options) (gemini/->Gemini user-input) (ollama/->Ollama user-input))]
+        llm (if (:ollama options) (ollama/->Ollama user-input) (gemini/->Gemini user-input))]
     (if (:json-schema-inspect options)
       (pprint/pprint (llm-provider/generate-json-schema-format llm export-properties))
       (llm-provider/chat llm export-properties))))

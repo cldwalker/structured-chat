@@ -2,6 +2,7 @@
   "Provides structured outputs for gemini - https://ai.google.dev/gemini-api/docs/structured-output?lang=node"
   (:require ["@google/generative-ai" :as gen-ai]
             [cldwalker.structured-chat.llm-provider :as llm-provider]
+            [cldwalker.structured-chat.util :as util]
             [cljs.pprint :as pprint]
             [clojure.string :as string]
             [promesa.core :as p]))
@@ -34,6 +35,8 @@
 
 (defn- gemini-chat
   [{{:keys [raw args many-objects]} :user-input :as llm} export-properties]
+  (when-not js/process.env.GEMINI_API_KEY
+    (util/error "Variable $GEMINI_API_KEY has no value"))
   (let [gen-ai-client (new gen-ai/GoogleGenerativeAI js/process.env.GEMINI_API_KEY)
         schema (llm-provider/generate-json-schema-format llm export-properties)
         prompt (if many-objects
@@ -57,9 +60,7 @@
             (llm-provider/print-export-map llm (.text resp) export-properties)))
         (p/catch (fn [e]
                    (if (instance? gen-ai/GoogleGenerativeAIFetchError e)
-                     (do
-                       (println "Error: Chat endpoint returned" (.-status e) "with message" (pr-str (.-message e)))
-                       (js/process.exit 1))
+                     (util/error (str "Error: Chat endpoint returned " (.-status e) " with message " (pr-str (.-message e))))
                      (println "Unexpected error: " e)))))))
 
 (defrecord Gemini [user-input]
