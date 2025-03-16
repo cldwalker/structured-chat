@@ -15,7 +15,7 @@
 
 (defn- ->property-value-schema
   "Returns a vec of optional malli properties and required schema for a given property ident"
-  [{{:keys [input-class input-global-properties user-config]} :input-map :as llm} export-properties prop-ident]
+  [{{:keys [input-class input-global-properties user-config]} :user-input :as llm} export-properties prop-ident]
   (let [prop->malli-type (property-type-to-malli-type llm)
         prop-type (get-in export-properties [prop-ident :logseq.property/type])
         schema* (if (= :node prop-type)
@@ -39,7 +39,7 @@
                            (conj schema))]
     props-and-schema))
 
-(defn- ->query-schema [{{:keys [input-class input-properties input-global-properties many-objects user-config]} :input-map :as llm}
+(defn- ->query-schema [{{:keys [input-class input-properties input-global-properties many-objects user-config]} :user-input :as llm}
                        export-properties]
   (let [schema
         (into
@@ -63,7 +63,7 @@
   ;; (pprint/pprint (->query-schema llm export-properties options))
   (json-schema/transform (->query-schema llm export-properties)))
 
-(defn- buildable-properties [{{:keys [input-class user-config]} :input-map :as llm} properties export-properties]
+(defn- buildable-properties [{{:keys [input-class user-config]} :user-input :as llm} properties export-properties]
   (->> properties
        (map (fn [[chat-ident v]]
               (let [prop-ident (or (some (fn [[k' v']] (when (= chat-ident (:chat-ident v')) k'))
@@ -96,7 +96,7 @@
 
 (defn print-export-map
   "Given a llm object and a json response, print and optional copy an export map"
-  [{{:keys [input-class block-import many-objects user-config]} :input-map :as llm} content-json export-properties]
+  [{{:keys [input-class block-import many-objects user-config]} :user-input :as llm} content-json export-properties]
   (let [content (-> (js/JSON.parse content-json)
                     (js->clj :keywordize-keys true))
         objects (mapv #(hash-map :name (:name %)

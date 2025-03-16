@@ -33,7 +33,7 @@
     (parse-long (string/replace date-str "-" ""))))
 
 (defn- gemini-chat
-  [{{:keys [raw args many-objects]} :input-map :as llm} export-properties]
+  [{{:keys [raw args many-objects]} :user-input :as llm} export-properties]
   (let [gen-ai-client (new gen-ai/GoogleGenerativeAI js/process.env.GEMINI_API_KEY)
         schema (llm-provider/generate-json-schema-format llm export-properties)
         prompt (if many-objects
@@ -62,7 +62,7 @@
                        (js/process.exit 1))
                      (println "Unexpected error: " e)))))))
 
-(defrecord Gemini [input-map]
+(defrecord Gemini [user-input]
   llm-provider/LlmProvider
   (chat [this export-properties]
     (gemini-chat this export-properties))

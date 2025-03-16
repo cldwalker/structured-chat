@@ -19,7 +19,7 @@
   (when (= :date prop-type)
     {:json-schema {:type "string" :format "date"}}))
 
-(defn- ->post-body [{{:keys [many-objects]} :input-map :as llm} export-properties args]
+(defn- ->post-body [{{:keys [many-objects]} :user-input :as llm} export-properties args]
   (let [prompt (if many-objects
                  (str "Tell me about " (first args) "(s) "
                       (->> (string/split (string/join " " (rest args)) #"\s*,\s*")
@@ -32,7 +32,7 @@
      :format (llm-provider/generate-json-schema-format llm export-properties)}))
 
 (defn- ollama-chat
-  [{{:keys [args raw]} :input-map :as llm} export-properties]
+  [{{:keys [args raw]} :user-input :as llm} export-properties]
   (let [post-body (->post-body llm export-properties args)
         post-body' (clj->js post-body :keyword-fn #(subs (str %) 1))]
     ;; TODO: Try javascript approach for possibly better results
@@ -55,7 +55,7 @@
         (p/catch (fn [e]
                    (println "Unexpected error: " e))))))
 
-(defrecord Ollama [input-map]
+(defrecord Ollama [user-input]
   llm-provider/LlmProvider
   (chat [this export-properties]
     (ollama-chat this export-properties))

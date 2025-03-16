@@ -102,11 +102,11 @@
          (map :db/ident)
          distinct)))
 
-(defn- build-export-properties [db input-map input-class]
+(defn- build-export-properties [db user-input input-class]
   (->> (:chat/class-properties (input-class user-config))
        (concat (mapcat :chat/properties (vals (:properties (get user-config input-class)))))
-       (concat (:input-properties input-map))
-       (concat (:input-global-properties input-map))
+       (concat (:input-properties user-input))
+       (concat (:input-global-properties user-input))
        distinct
        (map #(or (d/entity db %)
                  (error (str "No property exists for " (pr-str %)))))
@@ -143,7 +143,7 @@
         _ (when (seq random-properties)
             (println "To recreate these random properties: -p"
                      (string/join " " (map name random-properties))))
-        input-map (merge
+        user-input (merge
                    (select-keys options [:many-objects :block-import :raw])
                    {:input-class input-class
                     :input-properties (into (mapv translate-input-property (:properties options))
@@ -154,8 +154,8 @@
                     (mapv translate-input-property
                           ;; Use -P to clear default
                           (if (= (:global-properties options) [true]) [] (:global-properties options)))})
-        export-properties (build-export-properties @conn input-map input-class)
-        llm (if (:gemini options) (gemini/->Gemini input-map) (ollama/->Ollama input-map))]
+        export-properties (build-export-properties @conn user-input input-class)
+        llm (if (:gemini options) (gemini/->Gemini user-input) (ollama/->Ollama user-input))]
     (if (:json-schema-inspect options)
       (pprint/pprint (llm-provider/generate-json-schema-format llm export-properties))
       (llm-provider/chat llm export-properties))))
