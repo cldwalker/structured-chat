@@ -13,45 +13,49 @@
             [logseq.db :as ldb]
             [logseq.db.sqlite.cli :as sqlite-cli]))
 
-(def ^:private user-config
-  "Configure what to query per class/tag. Each class has a map consisting of the following keys:
-   * :chat/class-properties - a vec of properties to fetch for this class
-   * :properties - Configures properties. Keys are the property kw idents and the values are a map with the keys:
-     * :build/tags - For :node properties, tags to set for the property value(s)
-     * :chat/properties - For :node properties, properties to fetch for the property value(s)"
-  {:schema.class/Movie
-   {:chat/class-properties [:schema.property/actor :schema.property/director :schema.property/musicBy
-                            :schema.property/datePublished :schema.property/url]
-    :properties
-    {:schema.property/actor
-     {:chat/properties [:schema.property/birthDate #_:schema.property/birthPlace #_:schema.property/character #_:schema.property/hasOccupation]}
-     :schema.property/musicBy
-     {:build/tags [:schema.class/MusicGroup]}}}
+(def ^:private default-config
+  "Config has the following keys:
+   * :default-graph - Default graph used for all class and property lookups
+   * :class-defaults - Configure what to query per class/tag. Each class has a map consisting of the following keys:
+     * :chat/class-properties - a vec of properties to fetch for this class
+     * :properties - Configures properties. Keys are the property kw idents and the values are a map with the keys:
+       * :build/tags - For :node properties, tags to set for the property value(s)
+       * :chat/properties - For :node properties, properties to fetch for the property value(s)"
+  {:default-graph "./schema"
+   :class-defaults
+   {:schema.class/Movie
+    {:chat/class-properties [:schema.property/actor :schema.property/director :schema.property/musicBy
+                             :schema.property/datePublished :schema.property/url]
+     :properties
+     {:schema.property/actor
+      {:chat/properties [:schema.property/birthDate #_:schema.property/birthPlace #_:schema.property/character #_:schema.property/hasOccupation]}
+      :schema.property/musicBy
+      {:build/tags [:schema.class/MusicGroup]}}}
 
-   :schema.class/Book
-   {:chat/class-properties [:schema.property/author :schema.property/datePublished :schema.property/url
-                            #_#_:schema.property/abridged :schema.property/numberOfPages]
-    :properties
-    {:schema.property/author
-     {:build/tags [:schema.class/Person]}}}
+    :schema.class/Book
+    {:chat/class-properties [:schema.property/author :schema.property/datePublished :schema.property/url
+                             #_#_:schema.property/abridged :schema.property/numberOfPages]
+     :properties
+     {:schema.property/author
+      {:build/tags [:schema.class/Person]}}}
 
-   :schema.class/Person
-   {:chat/class-properties [:schema.property/birthDate :schema.property/birthPlace :schema.property/hasOccupation]
+    :schema.class/Person
+    {:chat/class-properties [:schema.property/birthDate :schema.property/birthPlace :schema.property/hasOccupation]
     ;; TODO: Get back a more specific place e.g. Country
-    #_:properties
-    #_{:schema.property/birthPlace
-       {:chat-ident :birthCountry :build/tags [:schema.class/Country]
-        :chat/properties [:schema.property/additionalType]}}}
+     #_:properties
+     #_{:schema.property/birthPlace
+        {:chat-ident :birthCountry :build/tags [:schema.class/Country]
+         :chat/properties [:schema.property/additionalType]}}}
 
-   :schema.class/Organization
-   {:chat/class-properties [:schema.property/url :schema.property/foundingLocation :schema.property/alumni]}
+    :schema.class/Organization
+    {:chat/class-properties [:schema.property/url :schema.property/foundingLocation :schema.property/alumni]}
 
-   :schema.class/MusicRecording
-   {:chat/class-properties [:schema.property/byArtist :schema.property/inAlbum :schema.property/datePublished
-                            :schema.property/url]
-    :properties
-    {:schema.property/byArtist
-     {:build/tags [:schema.class/MusicGroup]}}}})
+    :schema.class/MusicRecording
+    {:chat/class-properties [:schema.property/byArtist :schema.property/inAlbum :schema.property/datePublished
+                             :schema.property/url]
+     :properties
+     {:schema.property/byArtist
+      {:build/tags [:schema.class/MusicGroup]}}}}})
 
 (defn- get-dir-and-db-name
   "Gets dir and db name for use with open-db!"
@@ -84,6 +88,8 @@
                        :coerce :long}
    :many-objects {:alias :m
                   :desc "Query is for multiple comma separated objects"}
+   :graph {:alias :g
+           :desc "Graph to run against. *Required if default not set*"}
    :ollama {:alias :o
             :desc "Run ollama instead of gemini"}})
 
@@ -99,7 +105,7 @@
          (map :db/ident)
          distinct)))
 
-(defn- build-export-properties [db {:keys [input-class disable-initial-properties?] :as user-input}]
+(defn- build-export-properties [db {:keys [input-class disable-initial-properties? user-config] :as user-input}]
   (let [configured-object-properties
         (when-not disable-initial-properties?
           (concat (:chat/class-properties (input-class user-config))
@@ -119,9 +125,9 @@
 
 (defn ^:api -main [& args]
   (let [{options :opts args' :args} (cli/parse-args args {:spec spec})
-        [graph-dir & args''] args'
+        graph-dir (or (:graph options) (:default-graph default-config))
         _ (when (or (nil? graph-dir) (:help options))
-            (println (str "Usage: $0 GRAPH-NAME TAG [& ARGS] [OPTIONS]\nOptions:\n"
+            (println (str "Usage: $0 CLASS [& ARGS] [OPTIONS]\nOptions:\n"
                           (cli/format-opts {:spec spec})))
             (js/process.exit 1))
         [dir db-name] (get-dir-and-db-name graph-dir)
@@ -132,10 +138,10 @@
                     :in $ ?name
                     :where [?b :block/tags :logseq.class/Tag] [?b :block/name ?name]]
                   @conn
-                  (string/lower-case (first args'')))
+                  (string/lower-case (first args')))
              first
              (d/entity @conn))
-            (util/error (str "No class found for" (pr-str (first args'')))))
+            (util/error (str "No class found for" (pr-str (first args')))))
         input-class (:db/ident input-class-ent)
         random-properties (when (:random-properties options)
                             (take (:random-properties options)
@@ -152,8 +158,8 @@
                                              random-properties)
                      ;; enabled by '-p'
                      :disable-initial-properties? (= [true] (:properties options))
-                     :args args''
-                     :user-config user-config
+                     :args args'
+                     :user-config (:class-defaults default-config)
                      :input-global-properties
                      (mapv translate-input-property
                           ;; Use -P to clear default

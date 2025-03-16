@@ -1,6 +1,6 @@
 ## Description
 
-This project provides a CLI, `structured_chat` for extracting [structured output](https://ollama.com/blog/structured-outputs) from different LLM providers and optionally importing it to [Logseq](https://logseq.com). Currently this works for Google's gemini and Ollama's llama models. To see a demo of how this can work with ollama, see [this older video](https://www.loom.com/share/bd98db65474f4e828bd4db65d556159c).
+This project provides a CLI, `structured-chat` for extracting [structured output](https://ollama.com/blog/structured-outputs) from different LLM providers and optionally importing it to [Logseq](https://logseq.com). Currently this works for Google's gemini and Ollama's llama models. To see a demo of how this can work with ollama, see [this older video](https://www.loom.com/share/bd98db65474f4e828bd4db65d556159c).
 
 **NOTE**: The rest of this readme is out of date and will be outdated soon
 
