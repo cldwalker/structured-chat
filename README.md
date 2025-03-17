@@ -1,27 +1,31 @@
 ## Description
 
-This project provides a CLI, `structured-chat` for extracting [structured output](https://ollama.com/blog/structured-outputs) from different LLM providers and optionally importing it to [Logseq](https://logseq.com). Currently this works for Google's gemini and Ollama's llama models. To see a demo of how this can work with ollama, see [this older video](https://www.loom.com/share/bd98db65474f4e828bd4db65d556159c).
-
-**NOTE**: The rest of this readme is out of date and will be outdated soon
+This project provides a CLI for extracting [structured output](https://ollama.com/blog/structured-outputs) from different LLM providers and optionally importing it to [Logseq](https://logseq.com). Currently this works for Google's gemini and Ollama's llama models. To see a demo of how this works with Ollama, see [this video](https://www.loom.com/share/bd98db65474f4e828bd4db65d556159c).
 
 ## Setup
 
-* Install dependencies for the script:
-    * Install node.js >= 20 and yarn.
-    * Run `yarn install` to install npm dependencies.
-    * Install [babashka](https://github.com/babashka/babashka).
-* Setup ollama:
-    * [Install ollama](https://ollama.com/download).
-    * Download and run the [llama 3.2 model](https://ollama.com/library/llama3.2) with the command: `ollama run llama3.2`. This command needs to be running while chatting.
-* Import a new DB graph with the provided [schema db file](./schema/db.sqlite) and call the graph `schema`.
-    * You can also build the schema db from scratch if you clone the logseq repository and follow the [scripts/ README](https://github.com/logseq/logseq/tree/feat/db/scripts#usage) instructions for setting up a script and then run the schema.org related script.
+* Install dependencies:
+     * Install node.js >= 20 and yarn.
+     * Run `yarn install` to install npm dependencies.
+     * Install [babashka](https://github.com/babashka/babashka).
+* Setup a LLM provider:
+     * [Gemini](https://ai.google.dev/gemini-api/docs) - Google's models that run online. Results are faster and more accurate and the free tier is generous.
+          * Get an api key from https://aistudio.google.com/app/apikey. No credit card is needed.
+          * Set `$GEMINI_API_KEY` with the api key
+     * [Ollama](https://ollama.com/) - Different open models that run offline. Results are slower and less accurate (unless you have a decked out GPU).
+          * [Install ollama](https://ollama.com/download).
+          * Download and run the [llama 3.2 model](https://ollama.com/library/llama3.2) with the command: `ollama run llama3.2 --keepalive 1h`. This loads the model so response times are faster for the next hour.
+* (Optional) Setup a Logseq graph to use the LLM responses:
+     * Use the [DB version of Logseq](https://github.com/logseq/docs/blob/feat/db/db-version.md) at https://test.logseq.com/ or build it from source.
+     * Create a Logseq graph with the [import SQlite feature](https://github.com/logseq/docs/blob/feat/db/db-version.md#graph-export) and provide [this schema db file](./schema/db.sqlite). Name the graph `schema`.
+     * Another to way create the schema graph is to clone the logseq repository and follow the [scripts/ README](https://github.com/logseq/logseq/tree/feat/db/scripts#usage) instructions for setting up a script and then run the schema.org related script.
 
 ## Usage
 
-The script `structured_chat.mjs` queries the LLM to ask for [structured data](https://ollama.com/blog/structured-outputs) about a specific thing/object. To use the script, we need to specify the Logseq graph we're querying, Let's start by asking about the book 'Don Quixote':
+The script `structured_chat.mjs` queries the LLM to ask about specific things (objects). Let's start by asking about the book [Don Quixote](https://en.wikipedia.org/wiki/Don_Quixote):
 
 ```
-$ node structured_chat.mjs ./schema book don quixote
+$ node structured_chat.mjs book don quixote
 ...
  :pages-and-blocks
  [{:page
@@ -42,12 +46,14 @@ $ node structured_chat.mjs ./schema book don quixote
      [:build/page {:build/journal 16050124}]}}}]}
 ```
 
-You can see that we get back the book's published date and the author's name and url. This data is exactly what we asked for per the script's configuration. Now with this data copied to your clipboard (on osx), let's import it into Logseq `schema` graph you've created. Run the command `Import EDN Data`, paste the data and Import. Your graph now has a Don Quixote `#Book` page with 2 properties, each which have property values that are pages!
+You can see that we get back the book's published date and the author's name and url. This data is exactly what is asked for in the CLI's default configuration.
+
+Now with this data copied to your clipboard (on osx), let's import it into the Logseq `schema` graph you've created. Run the command `Import EDN Data`, paste the data and Import. Your graph now has a Don Quixote `#Book` page with 2 properties, each which have property values that are pages!
 
 Now that we have some info about the book, let's get more data about its author:
 
 ```
-$ node structured_chat.mjs ./schema person "Miguel de Cervantes Sañez"
+$ node structured_chat.mjs person "Miguel de Cervantes Sañez"
 ...
  :pages-and-blocks
  [{:page
@@ -65,12 +71,14 @@ $ node structured_chat.mjs ./schema person "Miguel de Cervantes Sañez"
      :schema.property/gender "Male"}}}]}
 ```
 
-Import this data into your graph and see your existing page about Miguel update with his birth place, birthday and gender! Feel free to query for any book or person. Sometimes you need to make the same query more than once to get back useful results for all properties.
+Import this data into your graph and see your existing page about Miguel update with his birth place, birthday and gender! Feel free to query the LLM about any book or person. Sometimes you need to make the same query more than once to get back useful results for all properties.
 
-So far we have been querying [books](https://schema.org/Book) and [people](https://schema.org/Person) tags/types. We got back a number of specific properties because the script already comes preconfigured for those tags, as well as for [movies](https://schema.org/Movie) and [songs](https://schema.org/MusicRecording). The script can also be used to explore any of [schema.org's 900 tags](https://schema.org/docs/full.html). For example, let's learn about the Clojure [software](https://schema.org/SoftwareSourceCode):
+So far we have been querying [books](https://schema.org/Book) and [people](https://schema.org/Person) classes (tags in Logseq). We got back a number of specific properties because the CLI comes preconfigured for those tags, as well as for [movies](https://schema.org/Movie) and [songs](https://schema.org/MusicRecording).
+
+The CLI can also be used to explore any of [schema.org's 900 tags](https://schema.org/docs/full.html). For example, let's learn about Clojure [software](https://schema.org/SoftwareSourceCode):
 
 ```
-$ node structured_chat.mjs ./schema softwaresourcecode clojure -p author codeRepository
+$ node structured_chat.mjs softwaresourcecode clojure -p author codeRepository
 ...
  :pages-and-blocks
  [{:page
@@ -98,10 +106,10 @@ $ node structured_chat.mjs ./schema softwaresourcecode clojure -p author codeRep
      :schema.property/url "https://clojure.org/"}}}]}
 ```
 
-To step back a bit, why does this script use the schema.org ontology? It's because it is a large ontology that has been used by the major search engines for over a decade. In addition to 900 tags, it provides 1400+ [properties](https://meta.schema.org/Property).org that are well designed for reuse. To quickly explore a variety of properties, use `-r`. For example, we can redo the Clojure query and ask for 5 random properties associated with it:
+To step back a bit, why does this script use the schema.org ontology? It's because it is a large ontology that has been used by the major search engines for over a decade. In addition to 900 tags, it provides 1400+ [properties](https://meta.schema.org/Property) that are well designed for reuse. To quickly explore a variety of properties, use `-r`. For example, we can redo the Clojure query and ask for 5 random properties associated with it:
 
 ```
-$ node structured_chat.mjs ./schema softwaresourcecode clojure -p author -r 5
+$ node structured_chat.mjs softwaresourcecode clojure -p author -r 5
 To recreate these random properties: -p learningResourceType encodingFormat accessibilitySummary abstract sdPublisher
 ...
  :pages-and-blocks
@@ -134,8 +142,10 @@ To recreate these random properties: -p learningResourceType encodingFormat acce
      :schema.property/url "https://clojure.org/"}}}]}
 ```
 
-## Configuring the script
+There is more functionality to explore. See additional options with `node structured_chat.mjs -h`
 
-The script is configured with the `user-config` var in [structured_chat.cljs](./src/cldwalker/structured_chat.cljs). Feel free to modify it to try out different schema.org tags and properties.
+## Configuring the CLI
 
-You could also configure the script to work with your graph's ontology. Doing so requires knowing the `:db/ident` of your graph's tags and properties. To get this data, run the dev command `Show page data` and look for the keyword next to `:db/ident`. NOTE: I have not tried this outside of the schema.org ontology and don't know how well ollama will respond to custom ontologies. I would think schema.org works better than most ontologies because of its widespread adoption and thus nontrivial representation in a LLM's training.
+The CLI is configured with the `default-config` var in [structured_chat.cljs](./src/cldwalker/structured_chat.cljs). Feel free to modify it to add preferred defaults for schema.org classes.
+
+You could also configure the CLI to work with your Logseq graph's ontology. Doing so requires knowing the `:db/ident` of your graph's tags and properties. To get this data, run the dev command `Show page data` and look for the keyword next to `:db/ident`. NOTE: I have not tried this outside of the schema.org ontology and don't know how well LLMs will respond to custom ontologies. I would think schema.org works better than most ontologies because of its widespread adoption and thus nontrivial representation in a LLM's training.

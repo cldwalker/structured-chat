@@ -71,27 +71,27 @@
   {:help {:alias :h
           :desc "Print help"}
    :block-import {:alias :b
-                  :desc "Import object as block in today's journal"}
+                  :desc "Import object(s) as block(s) in today's journal"}
    :raw {:alias :R
          :desc "Print raw json chat response instead of Logseq EDN"}
    :json-schema-inspect {:alias :j
                          :desc "Print json schema to submit and don't submit to chat"}
    :properties {:alias :p
-                :desc "Initial properties to fetch for object"
+                :desc "Initial properties to fetch for object(s)"
                 :coerce []}
    :global-properties {:alias :P
                        :desc "Global properties to fetch for all objects"
                        :coerce []
                        :default ["url"]}
    :random-properties {:alias :r
-                       :desc "Random number of properties to fetch for top-level object"
+                       :desc "Random number of properties to fetch for top-level object(s)"
                        :coerce :long}
    :many-objects {:alias :m
                   :desc "Query is for multiple comma separated objects"}
    :graph {:alias :g
            :desc "Graph to run against. *Required if default not set*"}
    :ollama {:alias :o
-            :desc "Run ollama instead of gemini"}})
+            :desc "Use ollama instead of gemini"}})
 
 (defn- translate-input-property [input]
   (if (= "description" input) :logseq.property/description (keyword "schema.property" input)))
