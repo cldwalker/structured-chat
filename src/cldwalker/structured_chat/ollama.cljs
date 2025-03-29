@@ -48,7 +48,13 @@
                                         [:message :content]
                                         #(-> (js/JSON.parse %)
                                              (js->clj :keywordize-keys true))))
-              (llm-provider/print-export-map llm (.. body -message -content) export-properties))
+              (llm-provider/print-export-map llm
+                                             {:title (string/join " " args)
+                                              :content-json (.. body -message -content)
+                                              :model (:model post-body)
+                                              :prompt (-> post-body :messages first :content)
+                                              :tokens (.-eval_count body)}
+                                             export-properties))
             (do
               (println "Error: Chat endpoint returned" (.-status resp) "with message" (pr-str (.-error body)))
               (js/process.exit 1))))

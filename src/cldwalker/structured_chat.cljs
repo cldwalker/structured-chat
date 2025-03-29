@@ -156,6 +156,7 @@
                                                []
                                                (mapv translate-input-property (:properties options)))
                                              random-properties)
+                     :llm-provider (if (:ollama options) "ollama" "gemini")
                      ;; enabled by '-p'
                      :disable-initial-properties? (= [true] (:properties options))
                      :args args'

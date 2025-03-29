@@ -1,6 +1,7 @@
 (ns cldwalker.structured-chat.llm-provider
   "Provides llm provider agonistic actions for creating a structured chat and responding to it"
-  (:require [cldwalker.structured-chat.util :as util]
+  (:require [cldwalker.structured-chat.property :as cs-property]
+            [cldwalker.structured-chat.util :as util]
             [cljs.pprint :as pprint]
             [logseq.common.util :as common-util]
             [logseq.common.util.date-time :as date-time-util]
@@ -64,7 +65,7 @@
   ;; (pprint/pprint (->query-schema llm export-properties options))
   (json-schema/transform (->query-schema llm export-properties)))
 
-(defn- buildable-properties [{{:keys [input-class user-config]} :user-input :as llm} properties export-properties]
+(defn- buildable-properties [{{:keys [input-class user-config]} :user-input :as llm} properties export-properties llm-response-uuid]
   (->> properties
        (map (fn [[chat-ident v]]
               (let [prop-ident (or (some (fn [[k' v']] (when (= chat-ident (:chat-ident v')) k'))
@@ -83,7 +84,7 @@
                                             (assoc :build/tags obj-tags)
                                             (seq (dissoc e :name))
                                             (assoc :build/properties
-                                                   (buildable-properties llm (dissoc e :name) export-properties))))]
+                                                   (buildable-properties llm (dissoc e :name) export-properties llm-response-uuid))))]
                            :date
                            [:build/page {:build/journal (parse-date-string llm e)}]
                            (:number :checkbox)
@@ -93,15 +94,38 @@
                    (if (vector? v)
                      (set (map prop-value v))
                      (prop-value v)))])))
-       (into {:user.property/importedAt (common-util/time-ms)})))
+       (into {::cs-property/importedAt (common-util/time-ms)
+              ::cs-property/llmResponse [:block/uuid llm-response-uuid]})))
+
+(def cli-classes
+  "Classes provided by the CLI. Could move to its own ns if it gets big enough"
+  {:cldwalker.structured-chat.class/LLMResponse
+   {:build/properties
+    {:logseq.property/description "A LLM Response initiated by the user and imported into Logseq"}
+    :build/class-properties
+    [::cs-property/prompt ::cs-property/llmProvider ::cs-property/model
+     ::cs-property/tokens]}})
+
+(defn- build-llm-response [{:keys [model tokens prompt title]} llm-provider llm-response-uuid]
+  {:block/title title
+   :build/tags [:cldwalker.structured-chat.class/LLMResponse]
+   :build/properties {::cs-property/prompt prompt
+                      ::cs-property/llmProvider llm-provider
+                      ::cs-property/model model
+                      ::cs-property/tokens tokens}
+   :block/uuid llm-response-uuid
+   :build/keep-uuid? true})
 
 (defn print-export-map
   "Given a llm object and a json response, print and optional copy an export map"
-  [{{:keys [input-class block-import many-objects user-config]} :user-input :as llm} content-json export-properties]
+  [{{:keys [input-class block-import many-objects user-config llm-provider]} :user-input :as llm}
+   {:keys [content-json] :as response-map} export-properties]
   (let [content (-> (js/JSON.parse content-json)
                     (js->clj :keywordize-keys true))
+        llm-response-uuid (random-uuid)
+        llm-response-node (build-llm-response response-map llm-provider llm-response-uuid)
         objects (mapv #(hash-map :name (:name %)
-                                 :properties (buildable-properties llm (dissoc % :name) export-properties))
+                                 :properties (buildable-properties llm (dissoc % :name) export-properties llm-response-uuid))
                       (if many-objects content [content]))
         export-classes (merge (zipmap (distinct
                                        (concat (mapcat :build/tags (vals (:properties (get user-config input-class))))
@@ -111,27 +135,26 @@
                               {input-class {}})
         pages-and-blocks*
         (if block-import
-          [{:page {:build/journal (date-time-util/date->int (new js/Date))}
+          [{:page llm-response-node}
+           {:page {:build/journal (date-time-util/date->int (new js/Date))}
             :blocks (mapv (fn [obj]
                             {:block/title (:name obj)
                              :build/tags [input-class]
                              :build/properties (:properties obj)})
                           objects)}]
-          (mapv (fn [obj]
-                  {:page
-                   {:block/title (:name obj)
-                    :build/tags [input-class]
-                   ;; Allows upsert of existing page
-                    :build/keep-uuid? true
-                    :build/properties (:properties obj)}})
-                objects))
+          (into [{:page llm-response-node}]
+                (mapv (fn [obj]
+                        {:page
+                         {:block/title (:name obj)
+                          :build/tags [input-class]
+                          ;; Allows upsert of existing page
+                          :build/keep-uuid? true
+                          :build/properties (:properties obj)}})
+                      objects)))
         {:keys [pages-and-blocks invalid-urls urls]} (util/remove-invalid-properties pages-and-blocks*)
         export-map
-        {:properties (merge export-properties
-                            {:user.property/importedAt
-                             {:logseq.property/type :datetime
-                              :db/cardinality :db.cardinality/one}})
-         :classes export-classes
+        {:properties (merge export-properties cs-property/properties)
+         :classes (merge export-classes cli-classes)
          :pages-and-blocks pages-and-blocks}]
     (#'sqlite-export/ensure-export-is-valid export-map)
     (pprint/pprint export-map)

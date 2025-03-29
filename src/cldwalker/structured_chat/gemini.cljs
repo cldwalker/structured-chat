@@ -57,7 +57,13 @@
                                       [:candidates 0 :content :parts 0 :text]
                                       #(-> (js/JSON.parse %)
                                            (js->clj :keywordize-keys true))))
-            (llm-provider/print-export-map llm (.text resp) export-properties)))
+            (llm-provider/print-export-map llm
+                                           {:title (string/join " " args)
+                                            :content-json (.text resp)
+                                            :model (.-modelVersion resp)
+                                            :prompt prompt
+                                            :tokens (.. resp -usageMetadata -candidatesTokenCount)}
+                                           export-properties)))
         (p/catch (fn [e]
                    (if (instance? gen-ai/GoogleGenerativeAIFetchError e)
                      (util/error (str "Error: Chat endpoint returned " (.-status e) " with message " (pr-str (.-message e))))
