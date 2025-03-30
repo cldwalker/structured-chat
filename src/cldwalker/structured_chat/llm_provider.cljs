@@ -11,7 +11,7 @@
 (defprotocol LlmProvider
   (chat [this export-properties])
   (property-type-to-malli-type [this])
-  (property-to-malli-options [this prop-type options])
+  (property-to-malli-options [this prop-type])
   (parse-date-string [this s]))
 
 (defn- ->property-value-schema
@@ -20,8 +20,7 @@
   (let [prop->malli-type (property-type-to-malli-type llm)
         prop-type (get-in export-properties [prop-ident :logseq.property/type])
         schema* (if (= :node prop-type)
-                  (let [obj-properties (->> (get-in user-config [input-class :properties prop-ident :chat/properties])
-                                            (concat input-global-properties)
+                  (let [obj-properties (->> (get-in user-config [input-class :properties prop-ident :chat/properties]) (concat input-global-properties)
                                             distinct)]
                     (into
                      [:map [:name {:min 2} :string]]
@@ -32,7 +31,9 @@
         schema (if (= :db.cardinality/many (get-in export-properties [prop-ident :db/cardinality]))
                  [:sequential {:min 1} schema*]
                  schema*)
-        malli-options (property-to-malli-options llm prop-type {})
+        malli-options (cond-> (property-to-malli-options llm prop-type)
+                        (get-in user-config [input-class :properties prop-ident :description])
+                        (assoc :description (get-in user-config [input-class :properties prop-ident :description])))
         props-and-schema (cond-> []
                            (some? malli-options)
                            (conj malli-options)
@@ -62,7 +63,7 @@
 (defn generate-json-schema-format
   "Given a llm object return the json schema for it"
   [llm export-properties]
-  ;; (pprint/pprint (->query-schema llm export-properties options))
+  ;; (pprint/pprint (->query-schema llm export-properties))
   (json-schema/transform (->query-schema llm export-properties)))
 
 (defn- buildable-properties [{{:keys [input-class user-config]} :user-input :as llm} properties export-properties llm-response-uuid]

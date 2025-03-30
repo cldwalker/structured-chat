@@ -19,6 +19,7 @@
    * :class-defaults - Configure what to query per class/tag. Each class has a map consisting of the following keys:
      * :chat/class-properties - a vec of properties to fetch for this class
      * :properties - Configures properties. Keys are the property kw idents and the values are a map with the keys:
+       * :description - Property description that can guide answers for some llm providers e.g. gemini
        * :build/tags - For :node properties, tags to set for the property value(s)
        * :chat/properties - For :node properties, properties to fetch for the property value(s)"
   {:default-graph "./schema"
@@ -30,7 +31,10 @@
      {:schema.property/actor
       {:chat/properties [:schema.property/birthDate #_:schema.property/birthPlace #_:schema.property/character #_:schema.property/hasOccupation]}
       :schema.property/musicBy
-      {:build/tags [:schema.class/MusicGroup]}}}
+      {:build/tags [:schema.class/MusicGroup]}
+      :schema.property/birthPlace
+      {:description "place only as a country"
+       :build/tags [:schema.class/Country]}}}
 
     :schema.class/Book
     {:chat/class-properties [:schema.property/author :schema.property/datePublished :schema.property/url
@@ -41,6 +45,10 @@
 
     :schema.class/Person
     {:chat/class-properties [:schema.property/birthDate :schema.property/birthPlace :schema.property/hasOccupation]
+     :properties
+     {:schema.property/birthPlace
+      {:description "place only as a country"
+       :build/tags [:schema.class/Country]}}
     ;; TODO: Get back a more specific place e.g. Country
      #_:properties
      #_{:schema.property/birthPlace

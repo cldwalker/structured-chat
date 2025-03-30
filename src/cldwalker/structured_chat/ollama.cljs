@@ -14,7 +14,7 @@
    :url uri?
    :default :string})
 
-(defn- ollama-malli-props [prop-type _options]
+(defn- ollama-malli-props [prop-type]
   ;; Add json-schemable :date via malli property rather fun install fun of malli.experimental.time
   (when (= :date prop-type)
     {:json-schema {:type "string" :format "date"}}))
@@ -66,7 +66,7 @@
   (chat [this export-properties]
     (ollama-chat this export-properties))
   (property-type-to-malli-type [_] ollama-prop->malli-type)
-  (property-to-malli-options [_ prop-type options]
-    (ollama-malli-props prop-type options))
+  (property-to-malli-options [_ prop-type]
+    (ollama-malli-props prop-type))
   (parse-date-string [_ s]
     (parse-long (string/replace s "-" ""))))

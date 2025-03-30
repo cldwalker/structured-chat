@@ -17,16 +17,10 @@
    :url :string
    :default :string})
 
-(defn- gemini-malli-props [prop-type _options]
-  (cond
-    ;; Add json-schemable :date via malli property rather fun install fun of malli.experimental.time
-    (= :date prop-type)
-    {:json-schema {:type "string" :format "date-time"}}
-    ;; (= prop-ident :schema.property/url)
-    ;; {:json-schema {:type "string" :description "wikipedia url"}}
-    ;; (= prop-ident :schema.property/birthPlace)
-    ;; {:json-schema {:type "string" :description "country"}}
-    ))
+(defn- gemini-malli-props [prop-type]
+  ;; gemini doesn't have date format but we can get it from date-time
+  (when (= :date prop-type)
+    {:json-schema {:type "string" :format "date-time"}}))
 
 (defn- parse-gemini-date [s]
   (let [date-str (or (second (re-find #"(\d{4}-\d{2}-\d{2})" s))
@@ -74,6 +68,6 @@
   (chat [this export-properties]
     (gemini-chat this export-properties))
   (property-type-to-malli-type [_] gemini-prop->malli-type)
-  (property-to-malli-options [_ prop-type options]
-    (gemini-malli-props prop-type options))
+  (property-to-malli-options [_ prop-type]
+    (gemini-malli-props prop-type))
   (parse-date-string [_ s] (parse-gemini-date s)))
