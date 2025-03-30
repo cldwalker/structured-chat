@@ -50,7 +50,7 @@
          (map
           (fn [k]
             (apply vector
-                   (or (get-in user-config [input-class :properties k :chat-ident]) k)
+                   k
                    (->property-value-schema llm export-properties k)))
           (distinct
            (concat (when-not disable-initial-properties? (:chat/class-properties (input-class user-config)))
@@ -68,33 +68,30 @@
 
 (defn- buildable-properties [{{:keys [input-class user-config]} :user-input :as llm} properties export-properties llm-response-uuid]
   (->> properties
-       (map (fn [[chat-ident v]]
-              (let [prop-ident (or (some (fn [[k' v']] (when (= chat-ident (:chat-ident v')) k'))
-                                         (:properties (get user-config input-class)))
-                                   chat-ident)]
-                [prop-ident
-                 (let [prop-value
-                       (fn [e]
-                         (case (get-in export-properties [prop-ident :logseq.property/type])
-                           :node
-                           [:build/page (let [obj-tags (or (get-in user-config [input-class :properties prop-ident :build/tags])
-                                                           (some-> (get-in export-properties [prop-ident :build/property-classes])
-                                                                   (subvec 0 1)))]
-                                          (cond-> {:block/title (:name e)}
-                                            (seq obj-tags)
-                                            (assoc :build/tags obj-tags)
-                                            (seq (dissoc e :name))
-                                            (assoc :build/properties
-                                                   (buildable-properties llm (dissoc e :name) export-properties llm-response-uuid))))]
-                           :date
-                           [:build/page {:build/journal (parse-date-string llm e)}]
-                           (:number :checkbox)
-                           e
-                           (:default :url)
-                           (str e)))]
-                   (if (vector? v)
-                     (set (map prop-value v))
-                     (prop-value v)))])))
+       (map (fn [[prop-ident v]]
+              [prop-ident
+               (let [prop-value
+                     (fn [e]
+                       (case (get-in export-properties [prop-ident :logseq.property/type])
+                         :node
+                         [:build/page (let [obj-tags (or (get-in user-config [input-class :properties prop-ident :build/tags])
+                                                         (some-> (get-in export-properties [prop-ident :build/property-classes])
+                                                                 (subvec 0 1)))]
+                                        (cond-> {:block/title (:name e)}
+                                          (seq obj-tags)
+                                          (assoc :build/tags obj-tags)
+                                          (seq (dissoc e :name))
+                                          (assoc :build/properties
+                                                 (buildable-properties llm (dissoc e :name) export-properties llm-response-uuid))))]
+                         :date
+                         [:build/page {:build/journal (parse-date-string llm e)}]
+                         (:number :checkbox)
+                         e
+                         (:default :url)
+                         (str e)))]
+                 (if (vector? v)
+                   (set (map prop-value v))
+                   (prop-value v)))]))
        (into {::cs-property/importedAt (common-util/time-ms)
               ::cs-property/llmResponse [:block/uuid llm-response-uuid]})))
 

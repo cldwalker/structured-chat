@@ -48,12 +48,7 @@
      :properties
      {:schema.property/birthPlace
       {:description "place only as a country"
-       :build/tags [:schema.class/Country]}}
-    ;; TODO: Get back a more specific place e.g. Country
-     #_:properties
-     #_{:schema.property/birthPlace
-        {:chat-ident :birthCountry :build/tags [:schema.class/Country]
-         :chat/properties [:schema.property/additionalType]}}}
+       :build/tags [:schema.class/Country]}}}
 
     :schema.class/Organization
     {:chat/class-properties [:schema.property/url :schema.property/foundingLocation :schema.property/alumni]}
