@@ -2,7 +2,7 @@
  :deps
  {io.github.logseq/bb-tasks
   #_{:local/root "../bb-tasks"}
-  {:git/sha "765896087455fcc52373dbab0d1762e47c005ef8"}}
+  {:git/sha "acb3d3d5d38c4ac16f617cb10ae6f99fe1b8de6e"}}
 
  :pods
  {clj-kondo/clj-kondo {:version "2025.02.20"}}
