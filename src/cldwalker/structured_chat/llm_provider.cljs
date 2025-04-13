@@ -104,11 +104,12 @@
     [::cs-property/prompt ::cs-property/llmProvider ::cs-property/model
      ::cs-property/tokens]}})
 
-(defn- build-llm-response [{:keys [model tokens prompt title]} llm-provider llm-response-uuid]
+(defn- build-llm-response [{:keys [model tokens prompt title total-time]} llm-provider llm-response-uuid]
   {:block/title title
    :build/tags [:cldwalker.structured-chat.class/LLMResponse]
    :build/properties {::cs-property/prompt prompt
                       ::cs-property/llmProvider llm-provider
+                      ::cs-property/totalTime total-time
                       ::cs-property/model model
                       ::cs-property/tokens tokens}
    :block/uuid llm-response-uuid

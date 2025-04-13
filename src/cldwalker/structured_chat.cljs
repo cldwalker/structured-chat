@@ -32,6 +32,8 @@
       {:chat/properties [:schema.property/birthDate #_:schema.property/birthPlace #_:schema.property/character #_:schema.property/hasOccupation]}
       :schema.property/musicBy
       {:build/tags [:schema.class/MusicGroup]}
+      :schema.property/url
+      {:description "wikipedia url"}
       :schema.property/birthPlace
       {:description "place only as a country"
        :build/tags [:schema.class/Country]}}}

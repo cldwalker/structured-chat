@@ -31,6 +31,11 @@
     :db/cardinality :db.cardinality/one
     :build/properties
     {:logseq.property/description "LLM Model of a provider"}}
+   ::totalTime
+   {:logseq.property/type :number
+    :db/cardinality :db.cardinality/one
+    :build/properties
+    {:logseq.property/description "Total time to generate and receive response (ms)"}}
    ::tokens
    {:logseq.property/type :integer
     :db/cardinality :db.cardinality/one

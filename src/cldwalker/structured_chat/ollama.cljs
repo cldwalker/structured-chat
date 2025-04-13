@@ -37,22 +37,29 @@
         post-body' (clj->js post-body :keyword-fn #(subs (str %) 1))]
     ;; TODO: Try javascript approach for possibly better results
     ;; Uses chat endpoint as described in https://ollama.com/blog/structured-outputs
-    (-> (p/let [resp (js/fetch "http://localhost:11434/api/chat"
+    (-> (p/let [start-time (system-time)
+                resp (js/fetch "http://localhost:11434/api/chat"
                                #js {:method "POST"
                                     :headers #js {"Accept" "application/json"}
                                     :body (js/JSON.stringify post-body')})
+                end-time (system-time)
                 body (.json resp)]
           (if (= 200 (.-status resp))
             (if raw
-              (pprint/pprint (update-in (js->clj body :keywordize-keys true)
-                                        [:message :content]
-                                        #(-> (js/JSON.parse %)
-                                             (js->clj :keywordize-keys true))))
+              (pprint/pprint (-> (update-in (js->clj body :keywordize-keys true)
+                                            [:message :content]
+                                            #(-> (js/JSON.parse %)
+                                                 (js->clj :keywordize-keys true)))
+                                 (assoc ::total-time (Math/round (- end-time start-time)))))
               (llm-provider/print-export-map llm
                                              {:title (string/join " " args)
                                               :content-json (.. body -message -content)
                                               :model (:model post-body)
                                               :prompt (-> post-body :messages first :content)
+                                              ;; Could also save eval-time (eval_duration from response)
+                                              ;; in order to calculate token/s. Decided to just have metric
+                                              ;; that all providers can give
+                                              :total-time (Math/round (- end-time start-time))
                                               :tokens (.-eval_count body)}
                                              export-properties))
             (do

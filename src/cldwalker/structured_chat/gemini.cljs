@@ -44,18 +44,22 @@
                                       :responseSchema schema}}
         post-body' (clj->js post-body :keyword-fn #(subs (str %) 1))
         model (.getGenerativeModel gen-ai-client post-body')]
-    (-> (p/let [result (.generateContent model prompt)
+    (-> (p/let [start-time (system-time)
+                result (.generateContent model prompt)
+                end-time (system-time)
                 resp (.-response result)]
           (if raw
-            (pprint/pprint (update-in (js->clj resp :keywordize-keys true)
-                                      [:candidates 0 :content :parts 0 :text]
-                                      #(-> (js/JSON.parse %)
-                                           (js->clj :keywordize-keys true))))
+            (pprint/pprint (-> (update-in (js->clj resp :keywordize-keys true)
+                                       [:candidates 0 :content :parts 0 :text]
+                                       #(-> (js/JSON.parse %)
+                                            (js->clj :keywordize-keys true)))
+                               (assoc ::total-time (Math/round (- end-time start-time)))))
             (llm-provider/print-export-map llm
                                            {:title (string/join " " args)
                                             :content-json (.text resp)
                                             :model (.-modelVersion resp)
                                             :prompt prompt
+                                            :total-time (Math/round (- end-time start-time))
                                             :tokens (.. resp -usageMetadata -candidatesTokenCount)}
                                            export-properties)))
         (p/catch (fn [e]
