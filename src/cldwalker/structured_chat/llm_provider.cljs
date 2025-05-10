@@ -3,10 +3,12 @@
   (:require [cldwalker.structured-chat.property :as cs-property]
             [cldwalker.structured-chat.util :as util]
             [cljs.pprint :as pprint]
+            [clojure.walk :as walk]
             [logseq.common.util :as common-util]
             [logseq.common.util.date-time :as date-time-util]
             [logseq.db.sqlite.export :as sqlite-export]
-            [malli.json-schema :as json-schema]))
+            [malli.json-schema :as json-schema]
+            [logseq.db.sqlite.build :as sqlite-build]))
 
 (defprotocol LlmProvider
   (chat [this export-properties])
@@ -115,6 +117,43 @@
    :block/uuid llm-response-uuid
    :build/keep-uuid? true})
 
+(defn- ensure-new-pages-are-unique
+  "Ensures any :build/page nodes that appear more than once get moved to :pages-and-blocks
+   and are referenced as uuids everywhere"
+  [export-map]
+  (let [new-pages (atom {})
+        _ (walk/postwalk (fn [f]
+                           (when (sqlite-build/page-prop-value? f)
+                             (swap! new-pages update
+                                    (select-keys (second f) [:build/journal :block/title :build/tags])
+                                    (fnil conj [])
+                                    (second f)))
+                           f)
+                         export-map)
+        pages-to-add (->> @new-pages
+                          (filter #(> (count (val %)) 1))
+                          (map (fn [[k v]]
+                                 [k
+                                  (merge (first v)
+                                         {:block/uuid (random-uuid)
+                                          :build/keep-uuid? true})]))
+                          (into {}))
+        ;; _ (cljs.pprint/pprint {:count (count pages-to-add) :new-pages pages-to-add})
+        export-map'
+        (walk/postwalk (fn [f]
+                         (if-let [new-page
+                                  (and (sqlite-build/page-prop-value? f)
+                                       (get pages-to-add (select-keys (second f) [:build/journal :block/title :build/tags])))]
+                           [:block/uuid (:block/uuid new-page)]
+                           f))
+                       export-map)
+        export-map'' (if (seq pages-to-add)
+                       (update export-map' :pages-and-blocks
+                               (fnil into [])
+                               (map #(hash-map :page %) (vals pages-to-add)))
+                       export-map')]
+    export-map''))
+
 (defn print-export-map
   "Given a llm object and a json response, print and optional copy an export map"
   [{{:keys [input-class block-import many-objects user-config llm-provider]} :user-input :as llm}
@@ -151,10 +190,11 @@
                           :build/properties (:properties obj)}})
                       objects)))
         {:keys [pages-and-blocks invalid-urls urls]} (util/remove-invalid-properties pages-and-blocks*)
-        export-map
+        export-map*
         {:properties (merge export-properties cs-property/properties)
          :classes (merge export-classes cli-classes)
-         :pages-and-blocks pages-and-blocks}]
+         :pages-and-blocks pages-and-blocks}
+        export-map (ensure-new-pages-are-unique export-map*)]
     (#'sqlite-export/ensure-export-is-valid export-map)
     (pprint/pprint export-map)
     (when (util/command-exists? "pbcopy")
