@@ -85,7 +85,7 @@
                                         (cond-> {:block/title (:name e)}
                                           (seq obj-tags)
                                           (assoc :build/tags obj-tags)
-                                          (seq (dissoc e :name))
+                                          true
                                           (assoc :build/properties
                                                  (buildable-properties llm (dissoc e :name) export-properties llm-response-uuid))))]
                          :date
