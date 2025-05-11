@@ -21,7 +21,8 @@
      * :properties - Configures properties. Keys are the property kw idents and the values are a map with the keys:
        * :description - Property description that can guide answers for some llm providers e.g. gemini
        * :build/tags - For :node properties, tags to set for the property value(s)
-       * :chat/properties - For :node properties, properties to fetch for the property value(s)"
+       * :chat/properties - For :node properties, properties to fetch for the property value(s)
+       * :chat/properties-only? - For :node properties, only :chat/properties takes affect i.e. global properties are ignored"
   {:default-graph "./schema"
    :class-defaults
    {:schema.class/Movie
@@ -30,6 +31,10 @@
      :properties
      {:schema.property/actor
       {:chat/properties [:schema.property/birthDate #_:schema.property/birthPlace #_:schema.property/character #_:schema.property/hasOccupation]}
+      :schema.property/character
+      {:chat/properties []
+       :build/tags [:user.class/FictionalPerson]
+       :chat/properties-only? true}
       :schema.property/musicBy
       {:build/tags [:schema.class/MusicGroup]}
       :schema.property/url

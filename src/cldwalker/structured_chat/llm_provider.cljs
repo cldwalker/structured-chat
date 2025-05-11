@@ -22,8 +22,11 @@
   (let [prop->malli-type (property-type-to-malli-type llm)
         prop-type (get-in export-properties [prop-ident :logseq.property/type])
         schema* (if (= :node prop-type)
-                  (let [obj-properties (->> (get-in user-config [input-class :properties prop-ident :chat/properties]) (concat input-global-properties)
-                                            distinct)]
+                  (let [obj-properties (cond->> (get-in user-config [input-class :properties prop-ident :chat/properties])
+                                         (not (get-in user-config [input-class :properties prop-ident :chat/properties-only?]))
+                                         (concat input-global-properties)
+                                         true
+                                         distinct)]
                     (into
                      [:map [:name {:min 2} :string]]
                      (map #(apply vector % (->property-value-schema llm export-properties %))
