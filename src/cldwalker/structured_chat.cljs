@@ -13,7 +13,7 @@
             [logseq.db :as ldb]
             [logseq.db.sqlite.cli :as sqlite-cli]))
 
-(def ^:private default-config
+(def ^:private ^:large-vars/data-var default-config
   "Config has the following keys:
    * :default-graph - Default graph used for all class and property lookups
    * :class-defaults - Configure what to query per class/tag. Each class has a map consisting of the following keys:
@@ -35,8 +35,14 @@
       {:chat/properties []
        :build/tags [:user.class/FictionalPerson]
        :chat/properties-only? true}
+      ;; :schema.property/director
+      ;; {:chat/properties [:schema.property/birthPlace]}
       :schema.property/musicBy
-      {:build/tags [:schema.class/MusicGroup]}
+      {:build/tags [:schema.class/MusicGroup]
+       #_ #_:chat/properties [:schema.property/foundingLocation]}
+      :schema.property/foundingLocation
+      {:description "place only as a country"
+       :build/tags [:schema.class/Country]}
       :schema.property/url
       {:description "wikipedia url"}
       :schema.property/birthPlace
