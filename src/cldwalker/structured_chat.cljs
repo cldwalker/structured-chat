@@ -30,16 +30,16 @@
                              :schema.property/datePublished :schema.property/url]
      :properties
      {:schema.property/actor
-      {:chat/properties [:schema.property/birthDate #_:schema.property/birthPlace #_:schema.property/character #_:schema.property/hasOccupation]}
+      {:chat/properties [:schema.property/birthDate :schema.property/birthPlace #_:schema.property/character #_:schema.property/hasOccupation]}
       :schema.property/character
       {:chat/properties []
        :build/tags [:user.class/FictionalPerson]
        :chat/properties-only? true}
       ;; :schema.property/director
-      ;; {:chat/properties [:schema.property/birthPlace]}
+      ;; {:chat/properties [:schema.property/birthDate :schema.property/birthPlace]}
       :schema.property/musicBy
       {:build/tags [:schema.class/MusicGroup]
-       #_ #_:chat/properties [:schema.property/foundingLocation]}
+       #_ #_:chat/properties [:schema.property/foundingDate :schema.property/foundingLocation]}
       :schema.property/foundingLocation
       {:description "place only as a country"
        :build/tags [:schema.class/Country]}

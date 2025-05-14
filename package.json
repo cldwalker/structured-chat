@@ -5,6 +5,9 @@
   "bin": {
     "structured-chat": "structured_chat.mjs"
   },
+  "engines" : {
+    "node" : ">=22.15.0"
+   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/cldwalker/structured-chat.git"
@@ -17,6 +20,6 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
     "@logseq/nbb-logseq": "logseq/nbb-logseq#feat-db-v18",
-    "better-sqlite3": "9.3.0"
+    "better-sqlite3": "11.10.0"
   }
 }
