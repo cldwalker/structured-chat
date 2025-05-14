@@ -11,7 +11,7 @@
             [clojure.string :as string]
             [datascript.core :as d]
             [logseq.db :as ldb]
-            [logseq.db.sqlite.cli :as sqlite-cli]))
+            [logseq.db.common.sqlite-cli :as sqlite-cli]))
 
 (def ^:private ^:large-vars/data-var default-config
   "Config has the following keys:
@@ -30,7 +30,7 @@
                              :schema.property/datePublished :schema.property/url]
      :properties
      {:schema.property/actor
-      {:chat/properties [:schema.property/birthDate :schema.property/birthPlace #_:schema.property/character #_:schema.property/hasOccupation]}
+      {:chat/properties [:schema.property/birthDate #_:schema.property/birthPlace #_:schema.property/character #_:schema.property/hasOccupation]}
       :schema.property/character
       {:chat/properties []
        :build/tags [:user.class/FictionalPerson]
