@@ -196,7 +196,8 @@
         export-map*
         {:properties (merge export-properties cs-property/properties)
          :classes (merge export-classes cli-classes)
-         :pages-and-blocks pages-and-blocks}
+         :pages-and-blocks pages-and-blocks
+         ::sqlite-export/import-options {:existing-pages-keep-properties? true}}
         export-map (ensure-new-pages-are-unique export-map*)]
     (#'sqlite-export/ensure-export-is-valid export-map)
     (pprint/pprint export-map)
