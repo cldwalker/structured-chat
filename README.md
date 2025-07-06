@@ -5,7 +5,7 @@ This project provides a CLI for extracting [structured output](https://ollama.co
 ## Setup
 
 * Install dependencies:
-     * Install node.js >= 20 and yarn.
+     * Install node.js >= 22 and yarn.
      * Run `yarn install` to install npm dependencies.
      * Install [babashka](https://github.com/babashka/babashka).
 * Setup a LLM provider:
@@ -16,9 +16,9 @@ This project provides a CLI for extracting [structured output](https://ollama.co
           * [Install ollama](https://ollama.com/download).
           * Download and run the [llama 3.2 model](https://ollama.com/library/llama3.2) with the command: `ollama run llama3.2 --keepalive 1h`. This loads the model so response times are faster for the next hour.
 * (Optional) Setup a Logseq graph to use the LLM responses:
-     * Use the [DB version of Logseq](https://github.com/logseq/docs/blob/feat/db/db-version.md) at https://test.logseq.com/ or build it from source.
-     * Create a Logseq graph with the [import SQlite feature](https://github.com/logseq/docs/blob/feat/db/db-version.md#graph-export) and provide [this schema db file](./schema/db.sqlite). Name the graph `schema`.
-     * Another to way create the schema graph is to clone the logseq repository and follow the [scripts/ README](https://github.com/logseq/logseq/tree/feat/db/scripts#usage) instructions for setting up a script and then run the schema.org related script.
+     * Use the [DB version of Logseq](https://github.com/logseq/docs/blob/master/db-version.md) at https://test.logseq.com/ or build it from source.
+     * Create a Logseq graph with the [import SQlite feature](https://github.com/logseq/docs/blob/master/db-version.md#graph-export) and provide [this schema db file](./schema/db.sqlite). Name the graph `schema`.
+     * Another to way create the schema graph is to clone the logseq repository and follow the [scripts/ README](https://github.com/logseq/logseq/tree/master/scripts#usage) instructions for setting up a script and then run the schema.org related script.
 
 ## Usage
 
