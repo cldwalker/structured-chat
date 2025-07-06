@@ -30,7 +30,7 @@
                              :schema.property/datePublished :schema.property/url]
      :properties
      {:schema.property/actor
-      {:chat/properties [:schema.property/birthDate #_:schema.property/birthPlace #_:schema.property/character #_:schema.property/hasOccupation]}
+      {:chat/properties [:schema.property/birthDate :schema.property/birthPlace :schema.property/character #_:schema.property/hasOccupation]}
       :schema.property/character
       {:chat/properties []
        :build/tags [:user.class/FictionalPerson]
@@ -39,7 +39,7 @@
       ;; {:chat/properties [:schema.property/birthDate :schema.property/birthPlace]}
       :schema.property/musicBy
       {:build/tags [:schema.class/MusicGroup]
-       #_ #_:chat/properties [:schema.property/foundingDate :schema.property/foundingLocation]}
+       #_#_:chat/properties [:schema.property/foundingDate :schema.property/foundingLocation]}
       :schema.property/foundingLocation
       {:description "place only as a country"
        :build/tags [:schema.class/Country]}
@@ -48,6 +48,14 @@
       :schema.property/birthPlace
       {:description "place only as a country"
        :build/tags [:schema.class/Country]}}}
+
+    :schema.class/Quotation
+    {:chat/class-properties [:schema.property/spokenByCharacter :schema.property/exampleOfWork]
+     :properties
+     {:schema.property/spokenByCharacter
+      {:chat/properties []
+       :build/tags [:user.class/FictionalPerson]
+       :chat/properties-only? true}}}
 
     :schema.class/Book
     {:chat/class-properties [:schema.property/author :schema.property/datePublished :schema.property/url

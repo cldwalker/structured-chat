@@ -50,9 +50,9 @@
                 resp (.-response result)]
           (if raw
             (pprint/pprint (-> (update-in (js->clj resp :keywordize-keys true)
-                                       [:candidates 0 :content :parts 0 :text]
-                                       #(-> (js/JSON.parse %)
-                                            (js->clj :keywordize-keys true)))
+                                          [:candidates 0 :content :parts 0 :text]
+                                          #(-> (js/JSON.parse %)
+                                               (js->clj :keywordize-keys true)))
                                (assoc ::total-time (Math/round (- end-time start-time)))))
             (llm-provider/print-export-map llm
                                            {:title (string/join " " args)
