@@ -7,9 +7,9 @@
   resolved "https://registry.yarnpkg.com/@google/generative-ai/-/generative-ai-0.24.0.tgz#4d27af7d944c924a27a593c17ad1336535d53846"
   integrity sha512-fnEITCGEB7NdX0BhoYZ/cq/7WPZ1QS5IzJJfC3Tg/OwkvBetMiVJciyaan297OvE4B9Jg1xvo0zIazX/9sGu1Q==
 
-"@logseq/nbb-logseq@logseq/nbb-logseq#feat-db-v23":
-  version "1.2.173-feat-db-v23"
-  resolved "https://codeload.github.com/logseq/nbb-logseq/tar.gz/810782c4ddba6346c4ab8ae6740b60438c07cd01"
+"@logseq/nbb-logseq@github:logseq/nbb-logseq#feat-db-v27":
+  version "1.2.173-feat-db-v27"
+  resolved "https://codeload.github.com/logseq/nbb-logseq/tar.gz/52af92d4ccc7eed31ceb6f95ba345bd8563bb597"
   dependencies:
     import-meta-resolve "^4.1.0"
 

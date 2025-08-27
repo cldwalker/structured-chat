@@ -1,7 +1,7 @@
 {:deps
  {logseq/db
   {:git/url "https://github.com/logseq/logseq"
-   :git/sha "d63a5ffb6af54f75f017c110825766018288f18f"
+   :git/sha "a8e2b173ced24af375568a69efb31b0185835c43"
    :deps/root "deps/db"}
   #_{:local/root "../logseq/deps/db"}
   metosin/malli {:mvn/version "0.17.0"}}}
