@@ -19,6 +19,7 @@ This project provides a CLI for extracting [structured output](https://ollama.co
      * Use the [DB version of Logseq](https://github.com/logseq/docs/blob/master/db-version.md) at https://test.logseq.com/ or build it from source.
      * Create a Logseq graph with the [import SQlite feature](https://github.com/logseq/docs/blob/master/db-version.md#graph-export) and provide [this schema db file](./schema/db.sqlite). Name the graph `schema`.
      * Another to way create the schema graph is to clone the logseq repository and follow the [scripts/ README](https://github.com/logseq/logseq/tree/master/scripts#usage) instructions for setting up a script and then run the schema.org related script.
+* (Optional) To use this as a CLI from any directory, run `yarn link`. All uses below of `node structured_chat.mjs` can be replaced with `structured-chat`.
 
 ## Usage
 
