@@ -11,7 +11,8 @@
             [clojure.string :as string]
             [datascript.core :as d]
             [logseq.db :as ldb]
-            [logseq.db.common.sqlite-cli :as sqlite-cli]))
+            [logseq.db.common.sqlite-cli :as sqlite-cli]
+            [nbb.error]))
 
 (def ^:private ^:large-vars/data-var default-config
   "Config has the following keys:
@@ -147,10 +148,10 @@
                                 (mapv :db/ident (:logseq.property/classes %))))))
          (into {}))))
 
-(defn ^:api -main [& args]
+(defn ^:api -main* [& args]
   (let [{options :opts args' :args} (cli/parse-args args {:spec spec})
         graph-dir (or (:graph options) (:default-graph default-config))
-        _ (when (or (nil? graph-dir) (:help options))
+        _ (when (or (nil? graph-dir) (:help options) (nil? (first args)))
             (println (str "Usage: $0 CLASS [& ARGS] [OPTIONS]\nOptions:\n"
                           (cli/format-opts {:spec spec})))
             (js/process.exit 1))
@@ -194,5 +195,12 @@
     (if (:json-schema-inspect options)
       (pprint/pprint (llm-provider/generate-json-schema-format llm export-properties))
       (llm-provider/chat llm export-properties))))
+
+(defn -main [& args]
+  (try
+    (apply -main* args)
+    (catch ^:sci/error js/Error e
+      (nbb.error/print-error-report e)
+      (js/process.exit 1))))
 
 #js {:main -main}
