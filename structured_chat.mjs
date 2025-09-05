@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 
 const __dirname = fileURLToPath(dirname(import.meta.url));
+global.__dirname = __dirname
 addClassPath(resolve(__dirname, 'src'));
 const { main } = await loadFile(resolve(__dirname, 'src/cldwalker/structured_chat.cljs'));
 

@@ -1,6 +1,7 @@
 (ns cldwalker.structured-chat
   "Main ns for running CLI"
-  (:require [babashka.cli :as cli]
+  (:require ["path" :as node-path]
+            [babashka.cli :as cli]
             [nbb.error]
             [promesa.core :as p]))
 
@@ -47,7 +48,7 @@
   (try
     (let [{options :opts args' :args} (cli/parse-args args {:spec spec})
           ;; TODO: put ./schema in config w/ out loading too much
-          graph-dir (or (:graph options) "./schema")
+          graph-dir (or (:graph options) (node-path/join js/__dirname "schema" "db.sqlite"))
           _ (when (or (nil? graph-dir) (:help options) (nil? (first args)))
               (println (str "Usage: $0 CLASS [& ARGS] [OPTIONS]\nOptions:\n"
                             (cli/format-opts {:spec spec})))

@@ -1,8 +1,6 @@
 (ns cldwalker.structured-chat.main
   "Ns for running main command"
-  (:require ["os" :as os]
-            ["path" :as node-path]
-            [cldwalker.structured-chat.gemini :as gemini]
+  (:require [cldwalker.structured-chat.gemini :as gemini]
             [cldwalker.structured-chat.llm-provider :as llm-provider]
             [cldwalker.structured-chat.ollama :as ollama]
             [cldwalker.structured-chat.util :as util]
@@ -81,16 +79,6 @@
      {:schema.property/byArtist
       {:build/tags [:schema.class/MusicGroup]}}}}})
 
-(defn- get-dir-and-db-name
-  "Gets dir and db name for use with open-db!"
-  [graph-dir]
-  (if (string/includes? graph-dir "/")
-    (let [graph-dir'
-          (node-path/join (or js/process.env.ORIGINAL_PWD ".") graph-dir)]
-      ((juxt node-path/dirname node-path/basename) graph-dir'))
-    [(node-path/join (os/homedir) "logseq" "graphs") graph-dir]))
-
-
 (defn- translate-input-property [input]
   (if (= "description" input) :logseq.property/description (keyword "schema.property" input)))
 
@@ -122,8 +110,7 @@
          (into {}))))
 
 (defn ^:api -main [graph-dir args' options]
-  (let [[dir db-name] (get-dir-and-db-name graph-dir)
-        conn (sqlite-cli/open-db! dir db-name)
+  (let [conn (apply sqlite-cli/open-db! (sqlite-cli/->open-db-args graph-dir))
         input-class-ent
         (or (->>
              (d/q '[:find [?b ...]
