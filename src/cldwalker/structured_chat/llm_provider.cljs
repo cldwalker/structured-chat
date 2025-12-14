@@ -199,7 +199,7 @@
          :pages-and-blocks pages-and-blocks
          ::sqlite-export/import-options {:existing-pages-keep-properties? true}}
         export-map (ensure-new-pages-are-unique export-map*)]
-    (#'sqlite-export/ensure-export-is-valid export-map)
+    (#'sqlite-export/basic-validate-export export-map)
     (pprint/pprint export-map)
     (when (util/command-exists? "pbcopy")
       (util/copy-to-clipboard (with-out-str (pprint/pprint export-map))))

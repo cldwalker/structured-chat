@@ -39,7 +39,8 @@
                            (map #(pr-str %))
                            (string/join ", ")))
                  (str "Tell me about " (first args) " " (pr-str (string/join " " (rest args)))))
-        post-body {:model "gemini-2.0-flash"
+        ;; switch to gemini-2.5-flash for more accuracy
+        post-body {:model "gemini-2.5-flash-lite"
                    :generationConfig {:responseMimeType "application/json"
                                       :responseSchema schema}}
         post-body' (clj->js post-body :keyword-fn #(subs (str %) 1))
